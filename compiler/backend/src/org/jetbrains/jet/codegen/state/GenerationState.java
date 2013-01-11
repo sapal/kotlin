@@ -66,6 +66,12 @@ public class GenerationState {
 
     private final boolean generateNotNullParamAssertions;
 
+    public enum ClassGenerationMode {
+        DECLARED_CLASSES_ONLY,
+        PACKAGE_CLASSES_ONLY,
+        ALL_CLASSES
+    }
+
     private final boolean generateDeclaredClasses;
 
     public GenerationState(Project project, ClassBuilderFactory builderFactory, BindingContext bindingContext, List<JetFile> files) {
@@ -172,7 +178,7 @@ public class GenerationState {
         markUsed();
 
         //noinspection unchecked
-        CodegenBinding.initTrace(getBindingTrace(), getFiles());
+        CodegenBinding.initTrace(getBindingTrace(), getFiles(), generateDeclaredClasses);
     }
 
     private void markUsed() {

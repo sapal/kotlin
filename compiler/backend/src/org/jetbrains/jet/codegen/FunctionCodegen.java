@@ -71,7 +71,7 @@ public class FunctionCodegen extends GenerationStateAware {
 
     public void gen(JetNamedFunction f) {
         final SimpleFunctionDescriptor functionDescriptor = bindingContext.get(BindingContext.FUNCTION, f);
-        assert functionDescriptor != null;
+        assert functionDescriptor != null : "Descriptor not found for " + f.getText();
         JvmMethodSignature method =
                 typeMapper.mapToCallableMethod(
                         functionDescriptor,

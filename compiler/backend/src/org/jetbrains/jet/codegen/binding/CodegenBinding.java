@@ -55,9 +55,9 @@ public class CodegenBinding {
     private CodegenBinding() {
     }
 
-    public static void initTrace(BindingTrace bindingTrace, Collection<JetFile> files) {
+    public static void initTrace(BindingTrace bindingTrace, Collection<JetFile> files, boolean onlyDeclaredClasses) {
         CodegenAnnotatingVisitor visitor = new CodegenAnnotatingVisitor(bindingTrace);
-        for (JetFile file : allFilesInNamespaces(bindingTrace.getBindingContext(), files)) {
+        for (JetFile file : allFilesInNamespaces(bindingTrace.getBindingContext(), files, onlyDeclaredClasses)) {
             file.accept(visitor);
         }
     }
@@ -205,7 +205,7 @@ public class CodegenBinding {
         registerClassNameForScript(bindingTrace, descriptor, className);
     }
 
-    @NotNull public static Collection<JetFile> allFilesInNamespaces(BindingContext bindingContext, Collection<JetFile> files) {
+    @NotNull public static Collection<JetFile> allFilesInNamespaces(BindingContext bindingContext, Collection<JetFile> files, boolean onlyDeclaredClasses) {
         // todo: we use Set and add given files but ignoring other scripts because something non-clear kept in binding
         // for scripts especially in case of REPL
 
@@ -219,11 +219,13 @@ public class CodegenBinding {
         final HashSet<JetFile> answer = new HashSet<JetFile>();
         answer.addAll(files);
 
-        for (FqName name : names) {
-            final NamespaceDescriptor namespaceDescriptor = bindingContext.get(BindingContext.FQNAME_TO_NAMESPACE_DESCRIPTOR, name);
-            final Collection<JetFile> jetFiles = bindingContext.get(NAMESPACE_TO_FILES, namespaceDescriptor);
-            if (jetFiles != null)
-                answer.addAll(jetFiles);
+        if (!onlyDeclaredClasses) {
+            for (FqName name : names) {
+                final NamespaceDescriptor namespaceDescriptor = bindingContext.get(BindingContext.FQNAME_TO_NAMESPACE_DESCRIPTOR, name);
+                final Collection<JetFile> jetFiles = bindingContext.get(NAMESPACE_TO_FILES, namespaceDescriptor);
+                if (jetFiles != null)
+                    answer.addAll(jetFiles);
+            }
         }
 
         List<JetFile> sortedAnswer = new ArrayList<JetFile>(answer);
@@ -374,7 +376,7 @@ public class CodegenBinding {
         for (JetDelegationSpecifier specifier : ((JetClassOrObject) classOrObject).getDelegationSpecifiers()) {
             if (specifier instanceof JetDelegatorToSuperCall) {
                 JetType superType = bindingContext.get(TYPE, specifier.getTypeReference());
-                assert superType != null;
+                assert superType != null : "Supertype not found: " + specifier.getText();
                 ClassDescriptor superClassDescriptor = (ClassDescriptor) superType.getConstructor().getDeclarationDescriptor();
                 assert superClassDescriptor != null;
                 if (!isInterface(superClassDescriptor)) {

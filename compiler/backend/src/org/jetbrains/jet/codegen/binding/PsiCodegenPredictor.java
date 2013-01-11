@@ -222,7 +222,7 @@ public final class PsiCodegenPredictor {
             }
         };
 
-        CodegenBinding.initTrace(trace, allNamespaceFiles);
+        CodegenBinding.initTrace(trace, allNamespaceFiles, false);
 
         return resultingDescriptor.isNull() ? null
                : BindingContextUtils.getContainingFile(trace.getBindingContext(), resultingDescriptor.get());
