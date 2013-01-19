@@ -791,6 +791,9 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         TemporaryBindingTrace traceForNamespaceOrClassObject = TemporaryBindingTrace.create(
                 context.trace, "trace to resolve as namespace or class object", nameExpression);
         JetType jetType = lookupNamespaceOrClassObject(nameExpression, newContext.replaceBindingTrace(traceForNamespaceOrClassObject));
+        if (jetType instanceof NamespaceType && !context.namespacesAllowed) {
+            jetType = null;
+        }
         if (jetType != null) {
             traceForNamespaceOrClassObject.commit();
 

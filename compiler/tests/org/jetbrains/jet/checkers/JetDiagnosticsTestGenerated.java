@@ -332,6 +332,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             doTest("compiler/testData/diagnostics/tests/NamespaceAsExpression.kt");
         }
         
+        @TestMetadata("NamespaceAsVariable.kt")
+        public void testNamespaceAsVariable() throws Exception {
+            doTest("compiler/testData/diagnostics/tests/NamespaceAsVariable.kt");
+        }
+        
         @TestMetadata("NamespaceInExpressionPosition.kt")
         public void testNamespaceInExpressionPosition() throws Exception {
             doTest("compiler/testData/diagnostics/tests/NamespaceInExpressionPosition.kt");
