@@ -79,7 +79,9 @@ public class ChangeMethodSignatureFix extends JetIntentionAction<JetNamedFunctio
         for (ClassDescriptor superclass : DescriptorUtils.getSuperclassDescriptors(descriptor)) {
             JetType type = superclass.getDefaultType();
             JetScope scope = type.getMemberScope();
-            supermethodsDescriptors.addAll(scope.getFunctions(name)); // TODO: only open methods
+            for (FunctionDescriptor function : scope.getFunctions(name)) {
+                if (function.getModality().isOverridable()) supermethodsDescriptors.add(function);
+            }
         }
     }
 
