@@ -16,84 +16,56 @@
 
 package org.jetbrains.jet.plugin.quickfix;
 
+import com.intellij.codeInsight.daemon.impl.ShowAutoImportPass;
+import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
+import com.intellij.lang.ASTNode;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.psi.JetNamedFunction;
-import org.jetbrains.jet.lang.psi.JetParameterList;
-import org.jetbrains.jet.lang.psi.JetPsiFactory;
+import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetBundle;
+import org.jetbrains.jet.plugin.actions.JetChangeFunctionSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
-public class ChangeMethodSignatureFix extends JetIntentionAction<JetNamedFunction>{
-
-    private Set<FunctionDescriptor> supermethodsDescriptors;
-    private String methodSignature;
+public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
+    private final List<String> possibleSignatures;
 
     public ChangeMethodSignatureFix(@NotNull JetNamedFunction element) {
         super(element);
+        this.possibleSignatures = computePossibleSignatures(element);
     }
-
 
     @Override
     public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile file) {
-        if (!super.isAvailable(project, editor, file)) {
-            return false;
-        }
-
-        BindingContext context = KotlinCacheManager.getInstance(project).getDeclarationsFromProject().getBindingContext();
-        SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, element);
-        assert functionDescriptor != null;
-        DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
-        if (!(containingDeclaration instanceof ClassDescriptor)) return false;
-        ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
-        prepareSupermethodDescriptors(classDescriptor);
-        if (!supermethodsDescriptors.isEmpty()) {
-            JetNamedFunction newElement = getNewFunctionElement(element, project, getFunctionDescriptor());
-
-            JetParameterList parameterList = newElement.getValueParameterList();
-            if (parameterList == null) return false;
-            methodSignature = newElement.getName() + parameterList.getText();
-        }
-        return !supermethodsDescriptors.isEmpty();
-    }
-
-    private void prepareSupermethodDescriptors(@NotNull ClassDescriptor descriptor) {
-        supermethodsDescriptors = new HashSet<FunctionDescriptor>();
-        Name name = element.getNameAsName();
-        assert name != null;
-        for (ClassDescriptor superclass : DescriptorUtils.getSuperclassDescriptors(descriptor)) {
-            JetType type = superclass.getDefaultType();
-            JetScope scope = type.getMemberScope();
-            for (FunctionDescriptor function : scope.getFunctions(name)) {
-                if (function.getModality().isOverridable()) supermethodsDescriptors.add(function);
-            }
-        }
+        return super.isAvailable(project, editor, file) && !possibleSignatures.isEmpty();
     }
 
     @NotNull
     @Override
     public String getText() {
-        return JetBundle.message("change.method.signature.action", newMethodSignature());
-    }
-
-    @NotNull
-    private String newMethodSignature() {
-        return methodSignature;
+        if (possibleSignatures.size() == 1)
+            return JetBundle.message("change.method.signature.action.single", possibleSignatures.get(0));
+        else
+            return JetBundle.message("change.method.signature.action.multiple");
     }
 
     @NotNull
@@ -102,29 +74,72 @@ public class ChangeMethodSignatureFix extends JetIntentionAction<JetNamedFunctio
         return JetBundle.message("change.method.signature.family");
     }
 
-    @NotNull
-    private static JetNamedFunction getNewFunctionElement(@NotNull JetNamedFunction element, @NotNull Project project,
-            @NotNull FunctionDescriptor function) {
-        JetNamedFunction newElement = (JetNamedFunction) element.copy();
-        JetParameterList newParameters = newElement.getValueParameterList();
-        assert newParameters != null;
-        newParameters.deleteChildRange(newParameters.getFirstChild(), newParameters.getLastChild());
-        for (ValueParameterDescriptor parameter : function.getValueParameters()) {
-            newParameters.add(JetPsiFactory.createParameter(project, parameter.getName().getName(), parameter.getType().toString()));
-        }
-        newParameters.addBefore(JetPsiFactory.createCallArguments(project, "()").getFirstChild(), newParameters.getFirstChild());
-        newParameters.addAfter(JetPsiFactory.createCallArguments(project, "()").getLastChild(), newParameters.getLastChild());
-        return newElement;
-    }
-
     @Override
-    public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
-        FunctionDescriptor function = getFunctionDescriptor();
-        element.replace(getNewFunctionElement(element, project, function));
+    public void invoke(@NotNull final Project project, @NotNull final Editor editor, final PsiFile file)
+            throws IncorrectOperationException {
+        CommandProcessor.getInstance().runUndoTransparentAction(new Runnable() {
+            @Override
+            public void run() {
+                createAction(project, editor).execute();
+            }
+        });
     }
 
-    private FunctionDescriptor getFunctionDescriptor() {
-        return supermethodsDescriptors.iterator().next();
+    @NotNull
+    private JetChangeFunctionSignatureAction createAction(@NotNull Project project, @NotNull Editor editor) {
+        return new JetChangeFunctionSignatureAction(project, editor, element, possibleSignatures);
+    }
+
+    @NotNull
+    private static List<String> computePossibleSignatures(JetNamedFunction functionElement) {
+        Project project = functionElement.getProject();
+        BindingContext context = KotlinCacheManager.getInstance(project).getDeclarationsFromProject().getBindingContext();
+        SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
+        assert functionDescriptor != null;
+        List<FunctionDescriptor> supermethods = getPossibleSupermethodsDescriptors(functionDescriptor);
+        List<String> possibleSignatures = new LinkedList<String>();
+        for (FunctionDescriptor supermethod : supermethods) {
+            PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, supermethod);
+            if (!(declaration instanceof JetNamedFunction)) continue;
+            JetNamedFunction supermethodElement = (JetNamedFunction) declaration;
+            possibleSignatures.add(getSignature(supermethodElement, functionElement));
+        }
+        return possibleSignatures;
+    }
+
+    private static String getSignature(JetNamedFunction supermethod, JetNamedFunction functionElement) {
+        JetNamedFunction newElement = (JetNamedFunction)supermethod.copy();
+        JetExpression bodyExpression = newElement.getBodyExpression();
+        if (bodyExpression != null) bodyExpression.delete();
+
+        Project project = functionElement.getProject();
+        PsiElement overrideModifier = JetPsiFactory.createModifier(project, JetTokens.OVERRIDE_KEYWORD).getFirstChild();
+        JetModifierList modifierList = newElement.getModifierList();
+        assert modifierList != null;
+        ASTNode openModifierNode = modifierList.getModifierNode(JetTokens.OPEN_KEYWORD);
+        assert openModifierNode != null;
+        PsiElement openModifier = openModifierNode.getPsi();
+        assert openModifier != null;
+        openModifier.replace(overrideModifier);
+
+        return newElement.getText();
+    }
+
+    private static List<FunctionDescriptor> getPossibleSupermethodsDescriptors(SimpleFunctionDescriptor functionDescriptor) {
+        DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
+        List<FunctionDescriptor> supermethods = new LinkedList<FunctionDescriptor>();
+        if (!(containingDeclaration instanceof ClassDescriptor)) return supermethods;
+        ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
+
+        Name name = functionDescriptor.getName();
+        for (ClassDescriptor superclass : DescriptorUtils.getSuperclassDescriptors(classDescriptor)) {
+            JetType type = superclass.getDefaultType();
+            JetScope scope = type.getMemberScope();
+            for (FunctionDescriptor function : scope.getFunctions(name)) {
+                if (function.getModality().isOverridable()) supermethods.add(function);
+            }
+        }
+        return supermethods;
     }
 
     @NotNull
@@ -137,5 +152,23 @@ public class ChangeMethodSignatureFix extends JetIntentionAction<JetNamedFunctio
                 return function == null ? null : new ChangeMethodSignatureFix(function);
             }
         };
+    }
+
+    @Override
+    public boolean showHint(Editor editor) {
+        if (possibleSignatures.isEmpty()) {
+            return false;
+        }
+
+        final Project project = editor.getProject();
+        if (project == null) {
+            return false;
+        }
+
+        if (HintManager.getInstance().hasShownHintsThatWillHideByOtherHint(true)) {
+            return false;
+        }
+
+        return true;
     }
 }
