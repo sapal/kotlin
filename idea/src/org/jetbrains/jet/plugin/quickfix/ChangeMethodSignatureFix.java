@@ -16,22 +16,27 @@
 
 package org.jetbrains.jet.plugin.quickfix;
 
-import com.intellij.codeInsight.daemon.impl.ShowAutoImportPass;
 import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.lang.ASTNode;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.psi.JetModifierList;
+import org.jetbrains.jet.lang.psi.JetNamedFunction;
+import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
@@ -44,10 +49,11 @@ import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetChangeFunctionSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
 
 public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
-    private final List<String> possibleSignatures;
+    private final List<JetNamedFunction> possibleSignatures;
 
     public ChangeMethodSignatureFix(@NotNull JetNamedFunction element) {
         super(element);
@@ -63,7 +69,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     @Override
     public String getText() {
         if (possibleSignatures.size() == 1)
-            return JetBundle.message("change.method.signature.action.single", possibleSignatures.get(0));
+            return JetBundle.message("change.method.signature.action.single", possibleSignatures.get(0).getText().trim());
         else
             return JetBundle.message("change.method.signature.action.multiple");
     }
@@ -91,13 +97,13 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     }
 
     @NotNull
-    private static List<String> computePossibleSignatures(JetNamedFunction functionElement) {
+    private static List<JetNamedFunction> computePossibleSignatures(JetNamedFunction functionElement) {
         Project project = functionElement.getProject();
         BindingContext context = KotlinCacheManager.getInstance(project).getDeclarationsFromProject().getBindingContext();
         SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
         assert functionDescriptor != null;
         List<FunctionDescriptor> supermethods = getPossibleSupermethodsDescriptors(functionDescriptor);
-        List<String> possibleSignatures = new LinkedList<String>();
+        List<JetNamedFunction> possibleSignatures = new LinkedList<JetNamedFunction>();
         for (FunctionDescriptor supermethod : supermethods) {
             PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, supermethod);
             if (!(declaration instanceof JetNamedFunction)) continue;
@@ -107,22 +113,48 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         return possibleSignatures;
     }
 
-    private static String getSignature(JetNamedFunction supermethod, JetNamedFunction functionElement) {
+    private static JetNamedFunction getSignature(JetNamedFunction supermethod, JetNamedFunction functionElement) {
         JetNamedFunction newElement = (JetNamedFunction)supermethod.copy();
         JetExpression bodyExpression = newElement.getBodyExpression();
         if (bodyExpression != null) bodyExpression.delete();
+        PsiElement tail = newElement.getLastChild();
+        while(true) {
+            if (tail.textMatches(";") || tail instanceof PsiWhiteSpace)  tail.delete();
+            else break;
+            tail = newElement.getLastChild();
+        }
 
         Project project = functionElement.getProject();
         PsiElement overrideModifier = JetPsiFactory.createModifier(project, JetTokens.OVERRIDE_KEYWORD).getFirstChild();
         JetModifierList modifierList = newElement.getModifierList();
         assert modifierList != null;
-        ASTNode openModifierNode = modifierList.getModifierNode(JetTokens.OPEN_KEYWORD);
-        assert openModifierNode != null;
-        PsiElement openModifier = openModifierNode.getPsi();
-        assert openModifier != null;
-        openModifier.replace(overrideModifier);
+        List<JetKeywordToken> removeModifiers = new LinkedList<JetKeywordToken>();
+        removeModifiers.add(JetTokens.ABSTRACT_KEYWORD);
+        removeModifiers.add(JetTokens.OPEN_KEYWORD);
+        removeModifiers.add(JetTokens.OVERRIDE_KEYWORD);
 
-        return newElement.getText();
+
+        PsiElement replaceNode = null;
+        for (JetKeywordToken modifier : removeModifiers) {
+           ASTNode modifierNode = modifierList.getModifierNode(modifier);
+           if (modifierNode != null) {
+               PsiElement modifierPsi = modifierNode.getPsi();
+               if (replaceNode == null) {
+                   replaceNode = modifierPsi;
+               }
+               else {
+                   modifierPsi.delete();
+               }
+           }
+        }
+        if (replaceNode == null) {
+            modifierList.addAfter(overrideModifier, modifierList.getLastChild());
+        }
+        else {
+            replaceNode.replace(overrideModifier);
+        }
+
+        return newElement;
     }
 
     private static List<FunctionDescriptor> getPossibleSupermethodsDescriptors(SimpleFunctionDescriptor functionDescriptor) {

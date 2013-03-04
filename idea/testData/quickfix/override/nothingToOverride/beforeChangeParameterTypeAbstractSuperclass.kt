@@ -1,6 +1,6 @@
 // "Change method signature to 'override fun bar(a: B)'" "true"
-open class A {
-    open fun bar(a: B) {}
+abstract class A {
+    abstract fun bar(a: B);
 }
 
 class B : A(){

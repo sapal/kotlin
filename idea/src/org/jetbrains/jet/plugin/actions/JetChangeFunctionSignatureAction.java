@@ -45,7 +45,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     private final Project myProject;
     private final Editor myEditor;
     private final JetNamedFunction myElement;
-    private final List<String> possibleSignatures;
+    private final List<JetNamedFunction> possibleSignatures;
 
     /**
      * @param project Project where action takes place.
@@ -57,7 +57,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             @NotNull Project project,
             @NotNull Editor editor,
             @NotNull JetNamedFunction element,
-            @NotNull Iterable<String> signatures
+            @NotNull Iterable<JetNamedFunction> signatures
     ) {
         myProject = project;
         myEditor = editor;
@@ -84,28 +84,35 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     }
 
     protected BaseListPopupStep getSignaturePopup() {
-        return new BaseListPopupStep<String>(JetBundle.message("signature.change.chooser.title"), possibleSignatures) {
+        return new BaseListPopupStep<JetNamedFunction>(
+                JetBundle.message("signature.change.chooser.title"), possibleSignatures) {
             @Override
             public boolean isAutoSelectionEnabled() {
                 return false;
             }
 
             @Override
-            public PopupStep onChosen(String selectedValue, boolean finalChoice) {
+            public PopupStep onChosen(JetNamedFunction selectedValue, boolean finalChoice) {
                 if (finalChoice) {
                     changeSignature(myElement, myProject, selectedValue);
                 }
                 return FINAL_CHOICE;
             }
 
+            @NotNull
             @Override
-            public Icon getIconFor(String aValue) {
+            public String getTextFor(JetNamedFunction value) {
+                return value.getText().trim();
+            }
+
+            @Override
+            public Icon getIconFor(JetNamedFunction aValue) {
                 return PlatformIcons.FUNCTION_ICON;
             }
         };
     }
 
-    protected static void changeSignature(final JetNamedFunction element, final Project project, final String signature) {
+    protected static void changeSignature(final JetNamedFunction element, final Project project, final JetNamedFunction signature) {
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
         CommandProcessor.getInstance().executeCommand(project, new Runnable() {
@@ -114,11 +121,16 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
                 ApplicationManager.getApplication().runWriteAction(new Runnable() {
                     @Override
                     public void run() {
-                        String body = ";";
                         JetExpression bodyExpression = element.getBodyExpression();
-                        if (bodyExpression != null) body = bodyExpression.getText();
-                        JetNamedFunction newElement = JetPsiFactory.createFunction(project, signature + body);
+                        JetNamedFunction newElement;
+                        if (bodyExpression != null) {
+                            newElement = JetPsiFactory.createFunction(project, signature.getText() + "{}");
+                            newElement.getBodyExpression().replace(bodyExpression);
+                        } else {
+                            newElement = JetPsiFactory.createFunction(project, signature.getText() + ";");
+                        }
                         element.replace(newElement);
+
                     }
                 });
             }
