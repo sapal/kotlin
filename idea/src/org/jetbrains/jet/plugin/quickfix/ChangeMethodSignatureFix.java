@@ -115,6 +115,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         Map<String,JetNamedFunction> possibleSignatures = new HashMap<String,JetNamedFunction>();
         for (FunctionDescriptor supermethod : supermethods) {
             PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, supermethod);
+            // TODO: declaration == null for Java classes (generate equivalent method signature?)
             if (!(declaration instanceof JetNamedFunction)) continue;
             JetNamedFunction supermethodElement = (JetNamedFunction) declaration;
             JetNamedFunction signature = changeSignatureToMatch(functionElement, supermethodElement);
@@ -122,6 +123,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         }
         return new ArrayList<JetNamedFunction>(possibleSignatures.values());
     }
+
     /**
      *  Changes functionElement's signature to match supermethod's signature. Returns body-less function.
      */
