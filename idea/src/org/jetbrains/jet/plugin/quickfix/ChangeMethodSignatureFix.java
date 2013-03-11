@@ -204,9 +204,10 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     private static void leaveOnlySignature(JetNamedFunction functionElement) {
         JetExpression bodyExpression = functionElement.getBodyExpression();
         if (bodyExpression != null) bodyExpression.delete();
+
         PsiElement tail = functionElement.getLastChild();
         while(true) {
-            if (tail.textMatches(";") || tail instanceof PsiWhiteSpace)  tail.delete();
+            if (tail.textMatches("=") || tail.textMatches(";") || tail instanceof PsiWhiteSpace)  tail.delete();
             else break;
             tail = functionElement.getLastChild();
         }

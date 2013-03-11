@@ -26,11 +26,16 @@ import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.PopupStep;
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.JetBinaryExpression;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
+import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetBundle;
 
 import javax.swing.*;
@@ -123,8 +128,14 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
                     public void run() {
                         JetExpression bodyExpression = element.getBodyExpression();
                         JetNamedFunction newElement;
+
                         if (bodyExpression != null) {
-                            newElement = JetPsiFactory.createFunction(project, signature.getText() + "{}");
+                            if (element.getEqualsToken() != null) {
+                                newElement = JetPsiFactory.createFunction(project, signature.getText() + "= 0");
+                            }
+                            else {
+                                newElement = JetPsiFactory.createFunction(project, signature.getText() + "{}");
+                            }
                             newElement.getBodyExpression().replace(bodyExpression);
                         } else {
                             newElement = JetPsiFactory.createFunction(project, signature.getText() + ";");
