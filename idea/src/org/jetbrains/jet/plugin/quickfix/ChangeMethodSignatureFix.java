@@ -46,8 +46,7 @@ import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetChangeMethodSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     private final List<JetNamedFunction> possibleSignatures;
@@ -66,9 +65,14 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     @Override
     public String getText() {
         if (possibleSignatures.size() == 1)
-            return JetBundle.message("change.method.signature.action.single", possibleSignatures.get(0).getText().trim());
+            return JetBundle.message("change.method.signature.action.single", getFunctionSignatureString(possibleSignatures.get(0)));
         else
             return JetBundle.message("change.method.signature.action.multiple");
+    }
+
+    @NotNull
+    private static String getFunctionSignatureString(@NotNull JetNamedFunction functionSignature) {
+        return functionSignature.getText().trim();
     }
 
     @NotNull
@@ -100,14 +104,15 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
         assert functionDescriptor != null;
         List<FunctionDescriptor> supermethods = getPossibleSupermethodsDescriptors(functionDescriptor);
-        List<JetNamedFunction> possibleSignatures = new LinkedList<JetNamedFunction>();
+        Map<String,JetNamedFunction> possibleSignatures = new HashMap<String,JetNamedFunction>();
         for (FunctionDescriptor supermethod : supermethods) {
             PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, supermethod);
             if (!(declaration instanceof JetNamedFunction)) continue;
             JetNamedFunction supermethodElement = (JetNamedFunction) declaration;
-            possibleSignatures.add(changeSignatureToMatch(functionElement, supermethodElement));
+            JetNamedFunction signature = changeSignatureToMatch(functionElement, supermethodElement);
+            possibleSignatures.put(getFunctionSignatureString(signature), signature);
         }
-        return possibleSignatures;
+        return new ArrayList<JetNamedFunction>(possibleSignatures.values());
     }
 
 
@@ -171,9 +176,15 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     }
 
     private static void changeModifiersToOverride(Project project, JetNamedFunction functionElement) {
-        PsiElement overrideModifier = JetPsiFactory.createModifier(project, JetTokens.OVERRIDE_KEYWORD).getFirstChild();
+
+        JetModifierList overrideModifierList = JetPsiFactory.createModifier(project, JetTokens.OVERRIDE_KEYWORD);
         JetModifierList modifierList = functionElement.getModifierList();
-        assert modifierList != null;
+        if (modifierList == null) {
+            functionElement.addBefore(JetPsiFactory.createWhiteSpace(project), functionElement.getFirstChild());
+            functionElement.addBefore(overrideModifierList, functionElement.getFirstChild());
+            return;
+        }
+        PsiElement overrideModifier = overrideModifierList.getFirstChild();
         List<JetKeywordToken> removeModifiers = new LinkedList<JetKeywordToken>();
         removeModifiers.add(JetTokens.ABSTRACT_KEYWORD);
         removeModifiers.add(JetTokens.OPEN_KEYWORD);
