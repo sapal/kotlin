@@ -33,10 +33,7 @@ import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.psi.JetExpression;
-import org.jetbrains.jet.lang.psi.JetModifierList;
-import org.jetbrains.jet.lang.psi.JetNamedFunction;
-import org.jetbrains.jet.lang.psi.JetPsiFactory;
+import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
@@ -108,25 +105,74 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, supermethod);
             if (!(declaration instanceof JetNamedFunction)) continue;
             JetNamedFunction supermethodElement = (JetNamedFunction) declaration;
-            possibleSignatures.add(getSignature(supermethodElement, functionElement));
+            possibleSignatures.add(changeSignatureToMatch(functionElement, supermethodElement));
         }
         return possibleSignatures;
     }
 
-    private static JetNamedFunction getSignature(JetNamedFunction supermethod, JetNamedFunction functionElement) {
+
+    private static JetNamedFunction changeSignatureToMatch(JetNamedFunction functionElement, JetNamedFunction supermethod) {
         JetNamedFunction newElement = (JetNamedFunction)supermethod.copy();
-        JetExpression bodyExpression = newElement.getBodyExpression();
-        if (bodyExpression != null) bodyExpression.delete();
-        PsiElement tail = newElement.getLastChild();
-        while(true) {
-            if (tail.textMatches(";") || tail instanceof PsiWhiteSpace)  tail.delete();
-            else break;
-            tail = newElement.getLastChild();
-        }
+        leaveOnlySignature(newElement);
 
         Project project = functionElement.getProject();
+        changeModifiersToOverride(project, newElement);
+
+        JetParameterList superParameterList = newElement.getValueParameterList();
+        assert superParameterList != null;
+        List<JetParameter> superParameters = superParameterList.getParameters();
+
+        JetParameterList parameterList = functionElement.getValueParameterList();
+        assert parameterList != null;
+        List<JetParameter> parameters = parameterList.getParameters();
+
+        boolean[] matched = new boolean[superParameters.size()];
+        boolean[] used = new boolean[parameters.size()];
+        int superIdx = 0;
+        for (JetParameter superParameter : superParameters) {
+            int idx = 0;
+            Name superName = superParameter.getNameAsSafeName();
+            for (JetParameter parameter : parameters) {
+                Name name = parameter.getNameAsSafeName();
+                if (!used[idx] && name.equals(superName)) {
+                    used[idx] = true;
+                    matched[superIdx] = true;
+                    break;
+                }
+                idx++;
+            }
+            superIdx++;
+        }
+
+        superIdx = 0;
+        for (JetParameter superParameter : superParameters) {
+            if (matched[superIdx]) continue;
+            int idx = 0;
+            JetTypeReference superTypeReference = superParameter.getTypeReference();
+            assert superTypeReference != null;
+            JetTypeElement superType = superTypeReference.getTypeElement();
+            assert superType != null;
+            for (JetParameter parameter : parameters) {
+                JetTypeReference typeReference = parameter.getTypeReference();
+                assert typeReference != null;
+                JetTypeElement type = typeReference.getTypeElement();
+                assert type != null;
+                if (!used[idx] && type.getText().equals(superType.getText())) {
+                    used[idx] = true;
+                    matched[superIdx] = true;
+                    superParameter.replace(parameter);
+                    break;
+                }
+                idx++;
+            }
+            superIdx++;
+        }
+        return newElement;
+    }
+
+    private static void changeModifiersToOverride(Project project, JetNamedFunction functionElement) {
         PsiElement overrideModifier = JetPsiFactory.createModifier(project, JetTokens.OVERRIDE_KEYWORD).getFirstChild();
-        JetModifierList modifierList = newElement.getModifierList();
+        JetModifierList modifierList = functionElement.getModifierList();
         assert modifierList != null;
         List<JetKeywordToken> removeModifiers = new LinkedList<JetKeywordToken>();
         removeModifiers.add(JetTokens.ABSTRACT_KEYWORD);
@@ -153,8 +199,17 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         else {
             replaceNode.replace(overrideModifier);
         }
+    }
 
-        return newElement;
+    private static void leaveOnlySignature(JetNamedFunction functionElement) {
+        JetExpression bodyExpression = functionElement.getBodyExpression();
+        if (bodyExpression != null) bodyExpression.delete();
+        PsiElement tail = functionElement.getLastChild();
+        while(true) {
+            if (tail.textMatches(";") || tail instanceof PsiWhiteSpace)  tail.delete();
+            else break;
+            tail = functionElement.getLastChild();
+        }
     }
 
     private static List<FunctionDescriptor> getPossibleSupermethodsDescriptors(SimpleFunctionDescriptor functionDescriptor) {
