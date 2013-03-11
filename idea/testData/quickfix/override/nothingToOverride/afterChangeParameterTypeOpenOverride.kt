@@ -1,12 +1,12 @@
-// "Change method signature to 'override fun bar()'" "true"
+// "Change method signature to 'override fun f()'" "true"
 open class A {
-    open fun bar() {}
+    open fun f() {}
 }
 
 open class B : A() {
-    open override fun bar() {}
+    open override fun f() {}
 }
 
 class C : B() {
-    <caret>override fun bar() {}
+    <caret>override fun f() {}
 }

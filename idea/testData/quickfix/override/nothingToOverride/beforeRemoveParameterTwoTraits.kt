@@ -1,11 +1,11 @@
-// "Change method signature to 'override fun bar()'" "true"
+// "Change method signature to 'override fun f()'" "true"
 trait A {
-    fun bar();
+    fun f();
 }
 trait B {
-    fun bar();
+    fun f();
 }
 
 class C : A, B {
-    <caret>override fun bar(a: String) {}
+    <caret>override fun f(a: String) {}
 }

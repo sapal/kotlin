@@ -1,8 +1,8 @@
-// "Change method signature to 'override fun bar(a: B)'" "true"
+// "Change method signature to 'override fun f(a: Int)'" "true"
 abstract class A {
-    abstract fun bar(a: B);
+    abstract fun f(a: Int);
 }
 
 class B : A(){
-    <caret>override fun bar(a: B) {}
+    <caret>override fun f(a: Int) {}
 }

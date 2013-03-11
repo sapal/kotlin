@@ -1,10 +1,11 @@
-// "Change method signature to 'override fun bar(a: B)'" "false"
-// ERROR: 'bar' overrides nothing
+// "Change method signature to 'override fun f(a: Int)'" "false"
+// ERROR: 'f' overrides nothing
 // ACTION: Remove 'override' modifier
 open class A {
-    fun bar(a: B) {}
+    open fun foo() {}
+    fun f(a: Int) {}
 }
 
 class B : A(){
-    <caret>override fun bar(a: A) {}
+    <caret>override fun f(a: String) {}
 }

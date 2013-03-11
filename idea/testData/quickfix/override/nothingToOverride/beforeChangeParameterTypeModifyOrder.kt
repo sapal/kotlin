@@ -1,8 +1,8 @@
-// "Change method signature to 'override fun bar(y: Int, x: String)'" "true"
+// "Change method signature to 'override fun f(y: Int, x: String)'" "true"
 open class A {
-    open fun bar(a: Int, b: String) {}
+    open fun f(a: Int, b: String) {}
 }
 
 class B : A(){
-    <caret>override fun bar(x: String, y: Int) {}
+    <caret>override fun f(x: String, y: Int) {}
 }
