@@ -43,7 +43,7 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lexer.JetKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.actions.JetChangeFunctionSignatureAction;
+import org.jetbrains.jet.plugin.actions.JetChangeMethodSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 
 import java.util.LinkedList;
@@ -89,8 +89,8 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     }
 
     @NotNull
-    private JetChangeFunctionSignatureAction createAction(@NotNull Project project, @NotNull Editor editor) {
-        return new JetChangeFunctionSignatureAction(project, editor, element, possibleSignatures);
+    private JetChangeMethodSignatureAction createAction(@NotNull Project project, @NotNull Editor editor) {
+        return new JetChangeMethodSignatureAction(project, editor, element, possibleSignatures);
     }
 
     @NotNull

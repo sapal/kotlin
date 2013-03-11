@@ -26,26 +26,21 @@ import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.PopupStep;
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.psi.PsiDocumentManager;
-import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.JetNodeTypes;
-import org.jetbrains.jet.lang.psi.JetBinaryExpression;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
-import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetBundle;
 
 import javax.swing.*;
 import java.util.List;
 
 /**
- * Automatically adds import directive to the file for resolving reference.
+ * Changes method signature to one of provided signatures.
  * Based on {@link JetAddImportAction}
  */
-public class JetChangeFunctionSignatureAction implements QuestionAction {
+public class JetChangeMethodSignatureAction implements QuestionAction {
 
     private final Project myProject;
     private final Editor myEditor;
@@ -55,10 +50,10 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     /**
      * @param project Project where action takes place.
      * @param editor Editor where modification should be done.
-     * @param element Element with unresolved reference.
+     * @param element Function element which signature should be changed.
      * @param signatures Variants for new function signature.
      */
-    public JetChangeFunctionSignatureAction(
+    public JetChangeMethodSignatureAction(
             @NotNull Project project,
             @NotNull Editor editor,
             @NotNull JetNamedFunction element,
@@ -74,14 +69,14 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     public boolean execute() {
         PsiDocumentManager.getInstance(myProject).commitAllDocuments();
 
-        if (!myElement.isValid()){
+        if (!myElement.isValid()) {
             return false;
         }
 
-        if (possibleSignatures.size() == 1){
+        if (possibleSignatures.size() == 1) {
             changeSignature(myElement, myProject, possibleSignatures.get(0));
         }
-        else{
+        else {
             chooseSignatureAndChange();
         }
 
@@ -136,7 +131,9 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
                             else {
                                 newElement = JetPsiFactory.createFunction(project, signature.getText() + "{}");
                             }
-                            newElement.getBodyExpression().replace(bodyExpression);
+                            JetExpression newBodyExpression = newElement.getBodyExpression();
+                            assert newBodyExpression != null;
+                            newBodyExpression.replace(bodyExpression);
                         } else {
                             newElement = JetPsiFactory.createFunction(project, signature.getText() + ";");
                         }
