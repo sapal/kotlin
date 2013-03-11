@@ -48,6 +48,9 @@ import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 
 import java.util.*;
 
+/**
+ * Fix that changes method signature to match one of supermethods' signatures.
+ */
 public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     private final List<JetNamedFunction> possibleSignatures;
 
@@ -65,7 +68,8 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     @Override
     public String getText() {
         if (possibleSignatures.size() == 1)
-            return JetBundle.message("change.method.signature.action.single", getFunctionSignatureString(possibleSignatures.get(0)));
+            return JetBundle.message("change.method.signature.action.single",
+                                     getFunctionSignatureString(possibleSignatures.get(0)));
         else
             return JetBundle.message("change.method.signature.action.multiple");
     }
@@ -97,6 +101,10 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         return new JetChangeMethodSignatureAction(project, editor, element, possibleSignatures);
     }
 
+    /**
+     * Computes all the signatures a 'functionElement' could be changed to in order to remove NOTHING_TO_OVERRIDE error.
+     * Note that removed list contains JetNamedFunction elements which describe only function signature (they don't have a body).
+     */
     @NotNull
     private static List<JetNamedFunction> computePossibleSignatures(JetNamedFunction functionElement) {
         Project project = functionElement.getProject();
@@ -114,8 +122,9 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         }
         return new ArrayList<JetNamedFunction>(possibleSignatures.values());
     }
-
-
+    /**
+     *  Changes functionElement's signature to match supermethod's signature. Returns body-less function.
+     */
     private static JetNamedFunction changeSignatureToMatch(JetNamedFunction functionElement, JetNamedFunction supermethod) {
         JetNamedFunction newElement = (JetNamedFunction)supermethod.copy();
         leaveOnlySignature(newElement);
@@ -131,8 +140,12 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         assert parameterList != null;
         List<JetParameter> parameters = parameterList.getParameters();
 
+        // Parameters in supermethod, which are matched in new method signature:
         boolean[] matched = new boolean[superParameters.size()];
+        // Parameters in this method, which are used in new method signature:
         boolean[] used = new boolean[parameters.size()];
+
+        // Match parameters with the same name (but possibly different types):
         int superIdx = 0;
         for (JetParameter superParameter : superParameters) {
             int idx = 0;
@@ -149,20 +162,15 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             superIdx++;
         }
 
+        // Match parameters with the same type (but possibly different names). Preserve ordering:
         superIdx = 0;
         for (JetParameter superParameter : superParameters) {
             if (matched[superIdx]) continue;
             int idx = 0;
-            JetTypeReference superTypeReference = superParameter.getTypeReference();
-            assert superTypeReference != null;
-            JetTypeElement superType = superTypeReference.getTypeElement();
-            assert superType != null;
+            String supermethodTypeText = getTypeText(superParameter);
             for (JetParameter parameter : parameters) {
-                JetTypeReference typeReference = parameter.getTypeReference();
-                assert typeReference != null;
-                JetTypeElement type = typeReference.getTypeElement();
-                assert type != null;
-                if (!used[idx] && type.getText().equals(superType.getText())) {
+                String typeText = getTypeText(parameter);
+                if (!used[idx] && typeText.equals(supermethodTypeText)) {
                     used[idx] = true;
                     matched[superIdx] = true;
                     superParameter.replace(parameter);
@@ -175,7 +183,19 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         return newElement;
     }
 
-    private static void changeModifiersToOverride(Project project, JetNamedFunction functionElement) {
+    @NotNull
+    private static String getTypeText(@NotNull JetParameter parameter) {
+        JetTypeReference typeReference = parameter.getTypeReference();
+        assert typeReference != null;
+        JetTypeElement typeElement = typeReference.getTypeElement();
+        assert typeElement != null;
+        return typeElement.getText();
+    }
+
+    /**
+     * Change modifier list to include 'override' keyword and not to include 'abstract' and 'open' keywords.
+     */
+    private static void changeModifiersToOverride(@NotNull Project project, @NotNull JetNamedFunction functionElement) {
 
         JetModifierList overrideModifierList = JetPsiFactory.createModifier(project, JetTokens.OVERRIDE_KEYWORD);
         JetModifierList modifierList = functionElement.getModifierList();
@@ -212,7 +232,10 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         }
     }
 
-    private static void leaveOnlySignature(JetNamedFunction functionElement) {
+    /**
+     * Remove body (or ';') from functionElement which leaves only function signature.
+     */
+    private static void leaveOnlySignature(@NotNull JetNamedFunction functionElement) {
         JetExpression bodyExpression = functionElement.getBodyExpression();
         if (bodyExpression != null) bodyExpression.delete();
 
@@ -224,7 +247,12 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         }
     }
 
-    private static List<FunctionDescriptor> getPossibleSupermethodsDescriptors(SimpleFunctionDescriptor functionDescriptor) {
+    /**
+     * Returns all open methods in superclasses which have the same name as 'functionDescriptor' (but possibly
+     * different parameters/return type).
+     */
+    @NotNull
+    private static List<FunctionDescriptor> getPossibleSupermethodsDescriptors(@NotNull SimpleFunctionDescriptor functionDescriptor) {
         DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
         List<FunctionDescriptor> supermethods = new LinkedList<FunctionDescriptor>();
         if (!(containingDeclaration instanceof ClassDescriptor)) return supermethods;
@@ -254,7 +282,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     }
 
     @Override
-    public boolean showHint(Editor editor) {
+    public boolean showHint(@NotNull Editor editor) {
         if (possibleSignatures.isEmpty()) {
             return false;
         }
