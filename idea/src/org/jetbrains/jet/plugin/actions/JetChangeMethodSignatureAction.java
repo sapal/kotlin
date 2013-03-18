@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.plugin.actions;
 
-import com.google.common.collect.Lists;
 import com.intellij.codeInsight.hint.QuestionAction;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
@@ -30,12 +29,9 @@ import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetExpression;
-import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
-import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
 
 import javax.swing.*;
@@ -77,7 +73,8 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
 
         Project project = element.getProject();
         for (SimpleFunctionDescriptor descriptor : signatures) {
-            JetNamedFunction signatureElement = DescriptorToDeclarationUtil.createDeclaration(project, descriptor);
+            JetNamedFunction signatureElement = DescriptorToDeclarationUtil.createOverridedFunctionDeclarationFromDescriptor(project,
+                                                                                                                             descriptor);
             signatureElements.add(signatureElement);
         }
         return signatureElements;

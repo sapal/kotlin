@@ -19,36 +19,32 @@ package org.jetbrains.jet.plugin.quickfix;
 import com.google.common.collect.Maps;
 import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
-import com.intellij.lang.ASTNode;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.diagnostics.rendering.Renderers;
-import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lexer.JetKeywordToken;
-import org.jetbrains.jet.lexer.JetTokens;
+import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetChangeMethodSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
-import org.jetbrains.jet.plugin.project.AnalyzeSingleFileUtil;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
 
-import javax.swing.plaf.basic.BasicHTML;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Fix that changes method signature to match one of super functions' signatures.
@@ -79,7 +75,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     @NotNull
     private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature) {
         Project project = element.getProject();
-        PsiElement element = DescriptorToDeclarationUtil.createDeclaration(project, functionSignature);
+        PsiElement element = DescriptorToDeclarationUtil.createOverridedFunctionDeclarationFromDescriptor(project, functionSignature);
         return element.getText().trim();
     }
 
@@ -111,7 +107,6 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
      */
     @NotNull
     private List<SimpleFunctionDescriptor> computePossibleSignatures(JetNamedFunction functionElement) {
-        JetFile file = (JetFile)functionElement.getContainingFile();
         Project project = functionElement.getProject();
         BindingContext context = KotlinCacheManager.getInstance(project).getDeclarationsFromProject().getBindingContext();
         SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
@@ -129,14 +124,9 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
      *  Changes function's signature to match superFunction's signature. Returns new descriptor.
      */
     private static SimpleFunctionDescriptor changeSignatureToMatch(SimpleFunctionDescriptor function, SimpleFunctionDescriptor superFunction) {
-
         List<ValueParameterDescriptor> superParameters = superFunction.getValueParameters();
-        assert superParameters != null;
-
         List<ValueParameterDescriptor> parameters = function.getValueParameters();
-        assert parameters != null;
-
-        ArrayList<ValueParameterDescriptor> newParameters = new ArrayList<ValueParameterDescriptor>(superParameters);
+        List<ValueParameterDescriptor> newParameters = new ArrayList<ValueParameterDescriptor>(superParameters);
 
         // Parameters in superFunction, which are matched in new method signature:
         boolean[] matched = new boolean[superParameters.size()];
@@ -168,7 +158,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             JetType superParameterType = superParameter.getType();
             for (ValueParameterDescriptor parameter : parameters) {
                 JetType parameterType = parameter.getType();
-                if (!used[idx] && superParameterType.equals(parameterType)) {  // TODO: check for inheritance
+                if (!used[idx] && JetTypeChecker.INSTANCE.equalTypes(superParameterType, parameterType)) {
                     used[idx] = true;
                     matched[superIdx] = true;
                     newParameters.set(superIdx, parameter);
@@ -178,80 +168,14 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             }
             superIdx++;
         }
-        SimpleFunctionDescriptor newFunction = DescriptorUtils.replaceValueParameters(
+        return DescriptorUtils.replaceValueParameters(
                 superFunction.copy(
-                    function.getContainingDeclaration(),
-                    Modality.OPEN,
-                    superFunction.getVisibility(),  // TODO: upgrade visibility to function's visibility
-                    CallableMemberDescriptor.Kind.DELEGATION, // TODO: check
+                        function.getContainingDeclaration(),
+                        Modality.OPEN,
+                        superFunction.getVisibility(),  // TODO: upgrade visibility to function's visibility
+                        CallableMemberDescriptor.Kind.DELEGATION, // TODO: check
                     /* copyOverrides = */ true),
                 DescriptorUtils.fixParametersIndexes(newParameters));
-
-        return newFunction;
-    }
-
-    @NotNull
-    private static String getTypeText(@NotNull JetParameter parameter) {
-        JetTypeReference typeReference = parameter.getTypeReference();
-        assert typeReference != null;
-        JetTypeElement typeElement = typeReference.getTypeElement();
-        assert typeElement != null;
-        return typeElement.getText();
-    }
-
-    /**
-     * Change modifier list to include 'override' keyword and not to include 'abstract' and 'open' keywords.
-     */
-    private static void changeModifiersToOverride(@NotNull Project project, @NotNull JetNamedFunction functionElement) {
-
-        JetModifierList overrideModifierList = JetPsiFactory.createModifier(project, JetTokens.OVERRIDE_KEYWORD);
-        JetModifierList modifierList = functionElement.getModifierList();
-        if (modifierList == null) {
-            functionElement.addBefore(JetPsiFactory.createWhiteSpace(project), functionElement.getFirstChild());
-            functionElement.addBefore(overrideModifierList, functionElement.getFirstChild());
-            return;
-        }
-        PsiElement overrideModifier = overrideModifierList.getFirstChild();
-        List<JetKeywordToken> removeModifiers = new LinkedList<JetKeywordToken>();
-        removeModifiers.add(JetTokens.ABSTRACT_KEYWORD);
-        removeModifiers.add(JetTokens.OPEN_KEYWORD);
-        removeModifiers.add(JetTokens.OVERRIDE_KEYWORD);
-
-
-        PsiElement replaceNode = null;
-        for (JetKeywordToken modifier : removeModifiers) {
-           ASTNode modifierNode = modifierList.getModifierNode(modifier);
-           if (modifierNode != null) {
-               PsiElement modifierPsi = modifierNode.getPsi();
-               if (replaceNode == null) {
-                   replaceNode = modifierPsi;
-               }
-               else {
-                   modifierPsi.delete();
-               }
-           }
-        }
-        if (replaceNode == null) {
-            modifierList.addAfter(overrideModifier, modifierList.getLastChild());
-        }
-        else {
-            replaceNode.replace(overrideModifier);
-        }
-    }
-
-    /**
-     * Remove body (or ';') from functionElement which leaves only function signature.
-     */
-    private static void leaveOnlySignature(@NotNull JetNamedFunction functionElement) {
-        JetExpression bodyExpression = functionElement.getBodyExpression();
-        if (bodyExpression != null) bodyExpression.delete();
-
-        PsiElement tail = functionElement.getLastChild();
-        while(true) {
-            if (tail.textMatches("=") || tail.textMatches(";") || tail instanceof PsiWhiteSpace)  tail.delete();
-            else break;
-            tail = functionElement.getLastChild();
-        }
     }
 
     /**

@@ -20,7 +20,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.psi.JetElement;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
@@ -72,7 +71,7 @@ public final class DescriptorToDeclarationUtil {
         }
     }
 
-    public static JetNamedFunction createDeclaration(Project project, SimpleFunctionDescriptor descriptor) {
+    public static JetNamedFunction createOverridedFunctionDeclarationFromDescriptor(Project project, SimpleFunctionDescriptor descriptor) {
         StringBuilder bodyBuilder = new StringBuilder();
         bodyBuilder.append(displayableVisibility(descriptor));
         bodyBuilder.append("override fun ");
@@ -112,36 +111,36 @@ public final class DescriptorToDeclarationUtil {
         addReceiverParameter(descriptor, bodyBuilder);
 
         bodyBuilder.append(descriptor.getName()).append("(");
-        boolean isAbstractFun = descriptor.getModality() == Modality.ABSTRACT;
-        StringBuilder delegationBuilder = new StringBuilder();
-        if (isAbstractFun) {
-            delegationBuilder.append("throw UnsupportedOperationException()");
-        }
-        else {
-            delegationBuilder.append("super<").append(descriptor.getContainingDeclaration().getName());
-            delegationBuilder.append(">.").append(descriptor.getName()).append("(");
-        }
+        //boolean isAbstractFun = descriptor.getModality() == Modality.ABSTRACT;
+        //StringBuilder delegationBuilder = new StringBuilder();
+        //if (isAbstractFun) {
+        //    delegationBuilder.append("throw UnsupportedOperationException()");
+        //}
+        //else {
+        //    delegationBuilder.append("super<").append(descriptor.getContainingDeclaration().getName());
+        //    delegationBuilder.append(">.").append(descriptor.getName()).append("(");
+        //}
         boolean first = true;
         for (ValueParameterDescriptor parameterDescriptor : descriptor.getValueParameters()) {
             if (!first) {
                 bodyBuilder.append(", ");
-                if (!isAbstractFun) {
-                    delegationBuilder.append(", ");
-                }
+                //if (!isAbstractFun) {
+                //    delegationBuilder.append(", ");
+                //}
             }
             first = false;
             bodyBuilder.append(parameterDescriptor.getName());
             bodyBuilder.append(": ");
             bodyBuilder.append(renderType(parameterDescriptor.getType()));
 
-            if (!isAbstractFun) {
-                delegationBuilder.append(parameterDescriptor.getName());
-            }
+            //if (!isAbstractFun) {
+            //    delegationBuilder.append(parameterDescriptor.getName());
+            //}
         }
         bodyBuilder.append(")");
-        if (!isAbstractFun) {
-            delegationBuilder.append(")");
-        }
+        //if (!isAbstractFun) {
+        //    delegationBuilder.append(")");
+        //}
         JetType returnType = descriptor.getReturnType();
         KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
 
