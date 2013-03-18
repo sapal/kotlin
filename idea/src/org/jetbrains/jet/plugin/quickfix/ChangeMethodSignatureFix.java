@@ -78,8 +78,6 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
 
     @NotNull
     private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature) {
-        //return DescriptorRenderer.SHORT_NAMES_IN_TYPES.render(functionSignature);
-
         Project project = element.getProject();
         PsiElement element = DescriptorToDeclarationUtil.createDeclaration(project, functionSignature);
         return element.getText().trim();
@@ -131,18 +129,14 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
      *  Changes function's signature to match superFunction's signature. Returns new descriptor.
      */
     private static SimpleFunctionDescriptor changeSignatureToMatch(SimpleFunctionDescriptor function, SimpleFunctionDescriptor superFunction) {
-        SimpleFunctionDescriptor newFunction = superFunction.copy(
-                function.getContainingDeclaration(),
-                Modality.OPEN,
-                superFunction.getVisibility(),  // TODO: upgrade visibility to function's visibility
-                CallableMemberDescriptor.Kind.DELEGATION, // TODO: check
-                /* copyOverrides = */ true);
 
         List<ValueParameterDescriptor> superParameters = superFunction.getValueParameters();
         assert superParameters != null;
 
         List<ValueParameterDescriptor> parameters = function.getValueParameters();
         assert parameters != null;
+
+        ArrayList<ValueParameterDescriptor> newParameters = new ArrayList<ValueParameterDescriptor>(superParameters);
 
         // Parameters in superFunction, which are matched in new method signature:
         boolean[] matched = new boolean[superParameters.size()];
@@ -173,18 +167,26 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             int idx = 0;
             JetType superParameterType = superParameter.getType();
             for (ValueParameterDescriptor parameter : parameters) {
-                JetType paramtererType = parameter.getType();
-                if (!used[idx] && superParameterType.equals(paramtererType)) {  // TODO: check for inheritance
+                JetType parameterType = parameter.getType();
+                if (!used[idx] && superParameterType.equals(parameterType)) {  // TODO: check for inheritance
                     used[idx] = true;
                     matched[superIdx] = true;
-                    // TODO: actually replace
-                    //superParameter.replace(parameter);
+                    newParameters.set(superIdx, parameter);
                     break;
                 }
                 idx++;
             }
             superIdx++;
         }
+        SimpleFunctionDescriptor newFunction = DescriptorUtils.replaceValueParameters(
+                superFunction.copy(
+                    function.getContainingDeclaration(),
+                    Modality.OPEN,
+                    superFunction.getVisibility(),  // TODO: upgrade visibility to function's visibility
+                    CallableMemberDescriptor.Kind.DELEGATION, // TODO: check
+                    /* copyOverrides = */ true),
+                DescriptorUtils.fixParametersIndexes(newParameters));
+
         return newFunction;
     }
 
