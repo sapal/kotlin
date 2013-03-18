@@ -802,9 +802,9 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeReturnType.kt");
             }
             
-            @TestMetadata("beforeNoOpenSupermethod.kt")
-            public void testNoOpenSupermethod() throws Exception {
-                doTest("idea/testData/quickfix/override/nothingToOverride/beforeNoOpenSupermethod.kt");
+            @TestMetadata("beforeNoOpenSuperFunction.kt")
+            public void testNoOpenSuperFunction() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeNoOpenSuperFunction.kt");
             }
             
             @TestMetadata("beforeRemoveOverride.kt")
