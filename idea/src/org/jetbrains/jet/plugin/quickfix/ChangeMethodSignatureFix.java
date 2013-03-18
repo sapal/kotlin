@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.plugin.quickfix;
 
+import com.google.common.collect.Maps;
 import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.lang.ASTNode;
@@ -28,11 +29,9 @@ import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
-import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
+import org.jetbrains.jet.lang.diagnostics.rendering.Renderers;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
@@ -45,14 +44,17 @@ import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetChangeMethodSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
+import org.jetbrains.jet.plugin.project.AnalyzeSingleFileUtil;
+import org.jetbrains.jet.renderer.DescriptorRenderer;
 
+import javax.swing.plaf.basic.BasicHTML;
 import java.util.*;
 
 /**
  * Fix that changes method signature to match one of super functions' signatures.
  */
 public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
-    private final List<JetNamedFunction> possibleSignatures;
+    private final List<SimpleFunctionDescriptor> possibleSignatures;
 
     public ChangeMethodSignatureFix(@NotNull JetNamedFunction element) {
         super(element);
@@ -71,12 +73,16 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             return JetBundle.message("change.method.signature.action.single",
                                      getFunctionSignatureString(possibleSignatures.get(0)));
         else
-            return JetBundle.message("change.method.signature.action.multiple");
+            return JetBundle.message("change.method.signature.action.multiple");     // TODO: test
     }
 
     @NotNull
-    private static String getFunctionSignatureString(@NotNull JetNamedFunction functionSignature) {
-        return functionSignature.getText().trim();
+    private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature) {
+        //return DescriptorRenderer.SHORT_NAMES_IN_TYPES.render(functionSignature);
+
+        Project project = element.getProject();
+        PsiElement element = DescriptorToDeclarationUtil.createDeclaration(project, functionSignature);
+        return element.getText().trim();
     }
 
     @NotNull
@@ -106,41 +112,37 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
      * Note that removed list contains JetNamedFunction elements which describe only function signature (they don't have a body).
      */
     @NotNull
-    private static List<JetNamedFunction> computePossibleSignatures(JetNamedFunction functionElement) {
+    private List<SimpleFunctionDescriptor> computePossibleSignatures(JetNamedFunction functionElement) {
         JetFile file = (JetFile)functionElement.getContainingFile();
         Project project = functionElement.getProject();
         BindingContext context = KotlinCacheManager.getInstance(project).getDeclarationsFromProject().getBindingContext();
         SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
         assert functionDescriptor != null;
-        List<FunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
-        Map<String,JetNamedFunction> possibleSignatures = new HashMap<String,JetNamedFunction>();
-        for (FunctionDescriptor superFunction : superFunctions) {
-            PsiElement declaration = DescriptorToDeclarationUtil.getDeclaration(file, superFunction, context);
-            if (!(declaration instanceof JetNamedFunction)) continue;
-            JetNamedFunction superFunctionElement = (JetNamedFunction) declaration;
-            JetNamedFunction signature = changeSignatureToMatch(functionElement, superFunctionElement);
+        List<SimpleFunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
+        Map<String, SimpleFunctionDescriptor> possibleSignatures = Maps.newHashMap();
+        for (SimpleFunctionDescriptor superFunction : superFunctions) {
+            SimpleFunctionDescriptor signature = changeSignatureToMatch(functionDescriptor, superFunction);
             possibleSignatures.put(getFunctionSignatureString(signature), signature);
         }
-        return new ArrayList<JetNamedFunction>(possibleSignatures.values());
+        return new ArrayList<SimpleFunctionDescriptor>(possibleSignatures.values());
     }
 
     /**
-     *  Changes functionElement's signature to match superFunction's signature. Returns body-less function.
+     *  Changes function's signature to match superFunction's signature. Returns new descriptor.
      */
-    private static JetNamedFunction changeSignatureToMatch(JetNamedFunction functionElement, JetNamedFunction superFunction) {
-        JetNamedFunction newElement = (JetNamedFunction)superFunction.copy();
-        leaveOnlySignature(newElement);
+    private static SimpleFunctionDescriptor changeSignatureToMatch(SimpleFunctionDescriptor function, SimpleFunctionDescriptor superFunction) {
+        SimpleFunctionDescriptor newFunction = superFunction.copy(
+                function.getContainingDeclaration(),
+                Modality.OPEN,
+                superFunction.getVisibility(),  // TODO: upgrade visibility to function's visibility
+                CallableMemberDescriptor.Kind.DELEGATION, // TODO: check
+                /* copyOverrides = */ true);
 
-        Project project = functionElement.getProject();
-        changeModifiersToOverride(project, newElement);
+        List<ValueParameterDescriptor> superParameters = superFunction.getValueParameters();
+        assert superParameters != null;
 
-        JetParameterList superParameterList = newElement.getValueParameterList();
-        assert superParameterList != null;
-        List<JetParameter> superParameters = superParameterList.getParameters();
-
-        JetParameterList parameterList = functionElement.getValueParameterList();
-        assert parameterList != null;
-        List<JetParameter> parameters = parameterList.getParameters();
+        List<ValueParameterDescriptor> parameters = function.getValueParameters();
+        assert parameters != null;
 
         // Parameters in superFunction, which are matched in new method signature:
         boolean[] matched = new boolean[superParameters.size()];
@@ -149,11 +151,11 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
 
         // Match parameters with the same name (but possibly different types):
         int superIdx = 0;
-        for (JetParameter superParameter : superParameters) {
+        for (ValueParameterDescriptor superParameter : superParameters) {
             int idx = 0;
-            Name superName = superParameter.getNameAsSafeName();
-            for (JetParameter parameter : parameters) {
-                Name name = parameter.getNameAsSafeName();
+            Name superName = superParameter.getName();
+            for (ValueParameterDescriptor parameter : parameters) {
+                Name name = parameter.getName();
                 if (!used[idx] && name.equals(superName)) {
                     used[idx] = true;
                     matched[superIdx] = true;
@@ -166,23 +168,24 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
 
         // Match parameters with the same type (but possibly different names). Preserve ordering:
         superIdx = 0;
-        for (JetParameter superParameter : superParameters) {
+        for (ValueParameterDescriptor superParameter : superParameters) {
             if (matched[superIdx]) continue;
             int idx = 0;
-            String superFunctionTypeText = getTypeText(superParameter);
-            for (JetParameter parameter : parameters) {
-                String typeText = getTypeText(parameter);
-                if (!used[idx] && typeText.equals(superFunctionTypeText)) {
+            JetType superParameterType = superParameter.getType();
+            for (ValueParameterDescriptor parameter : parameters) {
+                JetType paramtererType = parameter.getType();
+                if (!used[idx] && superParameterType.equals(paramtererType)) {  // TODO: check for inheritance
                     used[idx] = true;
                     matched[superIdx] = true;
-                    superParameter.replace(parameter);
+                    // TODO: actually replace
+                    //superParameter.replace(parameter);
                     break;
                 }
                 idx++;
             }
             superIdx++;
         }
-        return newElement;
+        return newFunction;
     }
 
     @NotNull
@@ -254,9 +257,9 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
      * different parameters/return type).
      */
     @NotNull
-    private static List<FunctionDescriptor> getPossibleSuperFunctionsDescriptors(@NotNull SimpleFunctionDescriptor functionDescriptor) {
+    private static List<SimpleFunctionDescriptor> getPossibleSuperFunctionsDescriptors(@NotNull SimpleFunctionDescriptor functionDescriptor) {
         DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
-        List<FunctionDescriptor> superFunctions = new LinkedList<FunctionDescriptor>();
+        List<SimpleFunctionDescriptor> superFunctions = new LinkedList<SimpleFunctionDescriptor>();
         if (!(containingDeclaration instanceof ClassDescriptor)) return superFunctions;
         ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
 
@@ -265,7 +268,10 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             JetType type = superclass.getDefaultType();
             JetScope scope = type.getMemberScope();
             for (FunctionDescriptor function : scope.getFunctions(name)) {
-                if (function.getModality().isOverridable()) superFunctions.add(function);
+                assert function instanceof SimpleFunctionDescriptor; // TODO: check
+                SimpleFunctionDescriptor simpleFunctionDescriptor = (SimpleFunctionDescriptor) function;
+                if (simpleFunctionDescriptor.getModality().isOverridable()) 
+                    superFunctions.add(simpleFunctionDescriptor);
             }
         }
         return superFunctions;

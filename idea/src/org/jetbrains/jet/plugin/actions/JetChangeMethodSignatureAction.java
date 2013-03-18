@@ -28,12 +28,19 @@ import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
+import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.JetBundle;
+import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
+import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
 
 import javax.swing.*;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -42,9 +49,9 @@ import java.util.List;
  */
 public class JetChangeMethodSignatureAction implements QuestionAction {
 
-    private final Project myProject;
-    private final Editor myEditor;
-    private final JetNamedFunction myElement;
+    private final Project project;
+    private final Editor editor;
+    private final JetNamedFunction element;
     private final List<JetNamedFunction> possibleSignatures;
 
     /**
@@ -57,24 +64,35 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
             @NotNull Project project,
             @NotNull Editor editor,
             @NotNull JetNamedFunction element,
-            @NotNull Iterable<JetNamedFunction> signatures
+            @NotNull Collection<SimpleFunctionDescriptor> signatures
     ) {
-        myProject = project;
-        myEditor = editor;
-        myElement = element;
-        possibleSignatures = Lists.newArrayList(signatures);
+        this.project = project;
+        this.editor = editor;
+        this.element = element;
+        possibleSignatures = getPossibleSignatures(signatures);
+    }
+
+    private List<JetNamedFunction> getPossibleSignatures(Collection<SimpleFunctionDescriptor> signatures) {
+        List<JetNamedFunction> signatureElements = new ArrayList(signatures.size());
+
+        Project project = element.getProject();
+        for (SimpleFunctionDescriptor descriptor : signatures) {
+            JetNamedFunction signatureElement = DescriptorToDeclarationUtil.createDeclaration(project, descriptor);
+            signatureElements.add(signatureElement);
+        }
+        return signatureElements;
     }
 
     @Override
     public boolean execute() {
-        PsiDocumentManager.getInstance(myProject).commitAllDocuments();
+        PsiDocumentManager.getInstance(project).commitAllDocuments();
 
-        if (!myElement.isValid()) {
+        if (!element.isValid()) {
             return false;
         }
 
         if (possibleSignatures.size() == 1) {
-            changeSignature(myElement, myProject, possibleSignatures.get(0));
+            changeSignature(element, project, possibleSignatures.get(0));
         }
         else {
             chooseSignatureAndChange();
@@ -94,7 +112,7 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
             @Override
             public PopupStep onChosen(JetNamedFunction selectedValue, boolean finalChoice) {
                 if (finalChoice) {
-                    changeSignature(myElement, myProject, selectedValue);
+                    changeSignature(element, project, selectedValue);
                 }
                 return FINAL_CHOICE;
             }
@@ -146,6 +164,6 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
     }
 
     private void chooseSignatureAndChange() {
-        JBPopupFactory.getInstance().createListPopup(getSignaturePopup()).showInBestPositionFor(myEditor);
+        JBPopupFactory.getInstance().createListPopup(getSignaturePopup()).showInBestPositionFor(editor);
     }
 }
