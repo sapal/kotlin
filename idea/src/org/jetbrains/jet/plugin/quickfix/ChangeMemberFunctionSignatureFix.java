@@ -22,7 +22,6 @@ import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
@@ -74,9 +73,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
 
     @NotNull
     private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature) {
-        Project project = element.getProject();
-        PsiElement element = DescriptorToDeclarationUtil.createOverridedFunctionDeclarationFromDescriptor(project, functionSignature);
-        return element.getText().trim();
+        return DescriptorToDeclarationUtil.createOverridedFunctionSignatureStringFromDescriptor(element.getProject(), functionSignature);
     }
 
     @NotNull

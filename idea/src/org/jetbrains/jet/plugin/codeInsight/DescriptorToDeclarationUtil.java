@@ -19,6 +19,7 @@ package org.jetbrains.jet.plugin.codeInsight;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
@@ -71,7 +72,16 @@ public final class DescriptorToDeclarationUtil {
         }
     }
 
-    public static JetNamedFunction createOverridedFunctionDeclarationFromDescriptor(Project project, SimpleFunctionDescriptor descriptor) {
+    @NotNull
+    public static String createOverridedFunctionSignatureStringFromDescriptor(
+            @NotNull Project project,
+            @NotNull SimpleFunctionDescriptor descriptor
+    ) {
+        return createOverridedFunctionDeclarationFromDescriptor(project, descriptor).getText().trim();
+    }
+
+    @NotNull
+    public static JetNamedFunction createOverridedFunctionDeclarationFromDescriptor(@NotNull Project project, @NotNull SimpleFunctionDescriptor descriptor) {
         StringBuilder bodyBuilder = new StringBuilder();
         bodyBuilder.append(displayableVisibility(descriptor));
         bodyBuilder.append("override fun ");
