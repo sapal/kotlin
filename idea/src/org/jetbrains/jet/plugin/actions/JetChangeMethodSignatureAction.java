@@ -98,7 +98,7 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
         return true;
     }
 
-    protected BaseListPopupStep getSignaturePopup() {
+    BaseListPopupStep getSignaturePopup() {
         return new BaseListPopupStep<JetNamedFunction>(
                 JetBundle.message("signature.change.chooser.title"), possibleSignatures) {
             @Override
@@ -127,7 +127,7 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
         };
     }
 
-    protected static void changeSignature(final JetNamedFunction element, final Project project, final JetNamedFunction signature) {
+    static void changeSignature(final JetNamedFunction element, final Project project, final JetNamedFunction signature) {
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
         CommandProcessor.getInstance().executeCommand(project, new Runnable() {
