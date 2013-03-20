@@ -69,7 +69,7 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
     }
 
     private List<JetNamedFunction> getPossibleSignatures(Collection<SimpleFunctionDescriptor> signatures) {
-        List<JetNamedFunction> signatureElements = new ArrayList(signatures.size());
+        List<JetNamedFunction> signatureElements = new ArrayList<JetNamedFunction>(signatures.size());
 
         Project project = element.getProject();
         for (SimpleFunctionDescriptor descriptor : signatures) {

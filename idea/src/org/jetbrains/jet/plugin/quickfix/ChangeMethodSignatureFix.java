@@ -86,7 +86,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     }
 
     @Override
-    public void invoke(@NotNull final Project project, @NotNull final Editor editor, final PsiFile file)
+    public void invoke(@NotNull final Project project, @NotNull final Editor editor, PsiFile file)
             throws IncorrectOperationException {
         CommandProcessor.getInstance().runUndoTransparentAction(new Runnable() {
             @Override
@@ -114,6 +114,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
         List<SimpleFunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
         Map<String, SimpleFunctionDescriptor> possibleSignatures = Maps.newHashMap();
         for (SimpleFunctionDescriptor superFunction : superFunctions) {
+            if (!superFunction.getKind().isReal()) continue;
             SimpleFunctionDescriptor signature = changeSignatureToMatch(functionDescriptor, superFunction);
             possibleSignatures.put(getFunctionSignatureString(signature), signature);
         }
@@ -174,7 +175,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
                         Modality.OPEN,
                         superFunction.getVisibility(),  // TODO: upgrade visibility to function's visibility
                         CallableMemberDescriptor.Kind.DELEGATION, // TODO: check
-                    /* copyOverrides = */ true),
+                        /* copyOverrides = */ true),
                 DescriptorUtils.fixParametersIndexes(newParameters));
     }
 
@@ -221,7 +222,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             return false;
         }
 
-        final Project project = editor.getProject();
+        Project project = editor.getProject();
         if (project == null) {
             return false;
         }
