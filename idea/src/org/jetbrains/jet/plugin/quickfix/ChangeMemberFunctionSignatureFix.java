@@ -40,10 +40,7 @@ import org.jetbrains.jet.plugin.actions.JetChangeFunctionSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Fix that changes member function's signature to match one of super functions' signatures.
@@ -125,55 +122,17 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         List<ValueParameterDescriptor> parameters = function.getValueParameters();
         List<ValueParameterDescriptor> newParameters = new ArrayList<ValueParameterDescriptor>(superParameters);
 
-        // Parameters in superFunction, which are matched in new method signature:
-        boolean[] matched = new boolean[superParameters.size()];
-        // Parameters in this method, which are used in new method signature:
-        boolean[] used = new boolean[parameters.size()];
+        // Parameters in superFunction, which are matched in new function signature:
+        ArrayList<Boolean> matched = new ArrayList<Boolean>(Collections.nCopies(superParameters.size(), false));
+        // Parameters in this function, which are used in new function signature:
+        ArrayList<Boolean> used = new ArrayList<Boolean>(Collections.nCopies(parameters.size(), false));
 
-        // Match parameters with the same name (but possibly different types):
-        int superIdx = 0;
-        for (ValueParameterDescriptor superParameter : superParameters) {
-            int idx = 0;
-            Name superName = superParameter.getName();
-            for (ValueParameterDescriptor parameter : parameters) {
-                Name name = parameter.getName();
-                if (!used[idx] && name.equals(superName)) {
-                    used[idx] = true;
-                    matched[superIdx] = true;
-                    break;
-                }
-                idx++;
-            }
-            superIdx++;
-        }
+        matchParametersWithTheSameName(superParameters, parameters, newParameters, matched, used);
 
-        // Match parameters with the same type (but possibly different names). Preserve ordering:
-        superIdx = 0;
-        for (ValueParameterDescriptor superParameter : superParameters) {
-            if (matched[superIdx]) continue;
-            int idx = 0;
-            JetType superParameterType = superParameter.getType();
-            for (ValueParameterDescriptor parameter : parameters) {
-                JetType parameterType = parameter.getType();
-                if (!used[idx] && JetTypeChecker.INSTANCE.equalTypes(superParameterType, parameterType)) {
-                    used[idx] = true;
-                    matched[superIdx] = true;
-                    newParameters.set(superIdx, parameter);
-                    break;
-                }
-                idx++;
-            }
-            superIdx++;
-        }
+        matchParametersWithTheSameType(superParameters, parameters, newParameters, matched, used);
 
-        Visibility superVisibility = superFunction.getVisibility();
-        Visibility visibility = function.getVisibility();
-        Visibility newVisibility = superVisibility;
-        // If function has greater visibility than super function, keep function's visibility:
-        Integer compareVisibilities = Visibilities.compare(visibility, superVisibility);
-        if (compareVisibilities != null && compareVisibilities > 0) {
-            newVisibility = visibility;
-        }
+        Visibility newVisibility = getVisibility(function, superFunction);
+
         return DescriptorUtils.replaceValueParameters(
                 superFunction.copy(
                         function.getContainingDeclaration(),
@@ -182,6 +141,88 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
                         CallableMemberDescriptor.Kind.DELEGATION,
                         /* copyOverrides = */ true),
                 DescriptorUtils.fixParametersIndexes(newParameters));
+    }
+
+    /**
+     * Returns new visibility for 'function' modified in such a way to override 'superFunction'.
+     */
+    private static Visibility getVisibility(SimpleFunctionDescriptor function, SimpleFunctionDescriptor superFunction) {
+        Visibility superVisibility = superFunction.getVisibility();
+        Visibility visibility = function.getVisibility();
+        Visibility newVisibility = superVisibility;
+        // If function has greater visibility than super function, keep function's visibility:
+        Integer compareVisibilities = Visibilities.compare(visibility, superVisibility);
+        if (compareVisibilities != null && compareVisibilities > 0) {
+            newVisibility = visibility;
+        }
+        return newVisibility;
+    }
+
+    /**
+     * Match function's parameters with super function's parameters of the same type (but possibly different names). Preserve ordering.
+     * @param superParameters - super function's parameters
+     * @param parameters - function's parameters
+     * @param newParameters - new parameters (may be modified by this function)
+     * @param matched - true iff this parameter in super function is matched by some parameter in function (may be modified by this function)
+     * @param used - true iff this parameter in function is used to match some parameter in super function (may be modified by this function)
+     */
+    private static void matchParametersWithTheSameType(
+            List<ValueParameterDescriptor> superParameters,
+            List<ValueParameterDescriptor> parameters,
+            List<ValueParameterDescriptor> newParameters,
+            ArrayList<Boolean> matched,
+            ArrayList<Boolean> used
+    ) {
+        int superIdx = 0;
+        for (ValueParameterDescriptor superParameter : superParameters) {
+            if (matched.get(superIdx)) continue;
+            int idx = 0;
+            JetType superParameterType = superParameter.getType();
+            for (ValueParameterDescriptor parameter : parameters) {
+                JetType parameterType = parameter.getType();
+                if (!used.get(idx) && JetTypeChecker.INSTANCE.equalTypes(superParameterType, parameterType)) {
+                    used.set(idx, true);
+                    matched.set(superIdx, true);
+                    newParameters.set(superIdx, parameter);
+                    break;
+                }
+                idx++;
+            }
+            superIdx++;
+        }
+    }
+
+    /**
+     * Match function's parameters with super function's parameters of the same name (but possibly different types). Don't preserver ordering.
+     * @param superParameters - super function's parameters
+     * @param parameters - function's parameters
+     * @param newParameters - new parameters (may be modified by this function)
+     * @param matched - true iff this parameter in super function is matched by some parameter in function (may be modified by this function)
+     * @param used - true iff this parameter in function is used to match some parameter in super function (may be modified by this function)
+     */
+    private static void matchParametersWithTheSameName(
+            List<ValueParameterDescriptor> superParameters,
+            List<ValueParameterDescriptor> parameters,
+            List<ValueParameterDescriptor> newParameters,
+            ArrayList<Boolean> matched,
+            ArrayList<Boolean> used
+    ) {
+        int superIdx = 0;
+        for (ValueParameterDescriptor superParameter : superParameters) {
+            int idx = 0;
+            Name superName = superParameter.getName();
+            for (ValueParameterDescriptor parameter : parameters) {
+                Name name = parameter.getName();
+                if (!used.get(idx) && name.equals(superName)) {
+                    used.set(idx, true);
+                    matched.set(superIdx, true);
+                    newParameters.set(superIdx, superParameter);
+                    break;
+                }
+                idx++;
+            }
+            superIdx++;
+        }
     }
 
     /**
