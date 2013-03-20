@@ -43,7 +43,7 @@ import java.util.List;
  * Changes method signature to one of provided signatures.
  * Based on {@link JetAddImportAction}
  */
-public class JetChangeMethodSignatureAction implements QuestionAction {
+public class JetChangeFunctionSignatureAction implements QuestionAction {
 
     private final Project project;
     private final Editor editor;
@@ -56,7 +56,7 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
      * @param element Function element which signature should be changed.
      * @param signatures Variants for new function signature.
      */
-    public JetChangeMethodSignatureAction(
+    public JetChangeFunctionSignatureAction(
             @NotNull Project project,
             @NotNull Editor editor,
             @NotNull JetNamedFunction element,
@@ -100,7 +100,7 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
 
     BaseListPopupStep getSignaturePopup() {
         return new BaseListPopupStep<JetNamedFunction>(
-                JetBundle.message("signature.change.chooser.title"), possibleSignatures) {
+                JetBundle.message("change.function.signature.chooser.title"), possibleSignatures) {
             @Override
             public boolean isAutoSelectionEnabled() {
                 return false;
@@ -157,7 +157,7 @@ public class JetChangeMethodSignatureAction implements QuestionAction {
                     }
                 });
             }
-        }, JetBundle.message("change.method.signature.action"), null);
+        }, JetBundle.message("change.function.signature.action"), null);
     }
 
     private void chooseSignatureAndChange() {

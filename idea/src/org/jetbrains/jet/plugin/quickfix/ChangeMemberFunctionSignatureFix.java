@@ -37,7 +37,7 @@ import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.actions.JetChangeMethodSignatureAction;
+import org.jetbrains.jet.plugin.actions.JetChangeFunctionSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
 
@@ -47,12 +47,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Fix that changes method signature to match one of super functions' signatures.
+ * Fix that changes function signature to match one of super functions' signatures.
  */
-public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
+public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunction> {
     private final List<SimpleFunctionDescriptor> possibleSignatures;
 
-    public ChangeMethodSignatureFix(@NotNull JetNamedFunction element) {
+    public ChangeMemberFunctionSignatureFix(@NotNull JetNamedFunction element) {
         super(element);
         this.possibleSignatures = computePossibleSignatures(element);
     }
@@ -66,10 +66,10 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     @Override
     public String getText() {
         if (possibleSignatures.size() == 1)
-            return JetBundle.message("change.method.signature.action.single",
+            return JetBundle.message("change.function.signature.action.single",
                                      getFunctionSignatureString(possibleSignatures.get(0)));
         else
-            return JetBundle.message("change.method.signature.action.multiple");     // TODO: test
+            return JetBundle.message("change.function.signature.action.multiple");     // TODO: test
     }
 
     @NotNull
@@ -82,7 +82,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     @NotNull
     @Override
     public String getFamilyName() {
-        return JetBundle.message("change.method.signature.family");
+        return JetBundle.message("change.function.signature.family");
     }
 
     @Override
@@ -97,8 +97,8 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
     }
 
     @NotNull
-    private JetChangeMethodSignatureAction createAction(@NotNull Project project, @NotNull Editor editor) {
-        return new JetChangeMethodSignatureAction(project, editor, element, possibleSignatures);
+    private JetChangeFunctionSignatureAction createAction(@NotNull Project project, @NotNull Editor editor) {
+        return new JetChangeFunctionSignatureAction(project, editor, element, possibleSignatures);
     }
 
     /**
@@ -211,7 +211,7 @@ public class ChangeMethodSignatureFix extends JetHintAction<JetNamedFunction> {
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
                 JetNamedFunction function = QuickFixUtil.getParentElementOfType(diagnostic, JetNamedFunction.class);
-                return function == null ? null : new ChangeMethodSignatureFix(function);
+                return function == null ? null : new ChangeMemberFunctionSignatureFix(function);
             }
         };
     }

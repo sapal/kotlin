@@ -1,4 +1,4 @@
-// "Change method signature to 'override fun f(a: Int)'" "true"
+// "Change function signature to 'override fun f(a: Int)'" "true"
 abstract class A {
     abstract fun f(a: Int);
 }

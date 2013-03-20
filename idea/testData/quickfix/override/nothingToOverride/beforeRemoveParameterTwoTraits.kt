@@ -1,4 +1,4 @@
-// "Change method signature to 'override fun f()'" "true"
+// "Change function signature to 'override fun f()'" "true"
 trait A {
     fun f();
 }
