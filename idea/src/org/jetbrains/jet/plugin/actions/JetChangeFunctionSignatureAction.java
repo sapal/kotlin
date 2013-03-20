@@ -132,16 +132,17 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
                         JetNamedFunction newElement;
 
                         if (bodyExpression != null) {
-                            if (element.getEqualsToken() != null) {
-                                newElement = JetPsiFactory.createFunction(project, signature + "= 0");
+                            if (element.hasBlockBody()) {
+                                newElement = JetPsiFactory.createFunction(project, signature + "{}");
                             }
                             else {
-                                newElement = JetPsiFactory.createFunction(project, signature + "{}");
+                                newElement = JetPsiFactory.createFunction(project, signature + "= 0");
                             }
                             JetExpression newBodyExpression = newElement.getBodyExpression();
                             assert newBodyExpression != null;
                             newBodyExpression.replace(bodyExpression);
-                        } else {
+                        }
+                        else {
                             newElement = JetPsiFactory.createFunction(project, signature);
                         }
                         element.replace(newElement);
