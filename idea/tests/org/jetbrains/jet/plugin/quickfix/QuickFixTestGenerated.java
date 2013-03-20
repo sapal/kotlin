@@ -750,6 +750,16 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
         
         @TestMetadata("idea/testData/quickfix/override/nothingToOverride")
         public static class NothingToOverride extends AbstractQuickFixTest {
+            @TestMetadata("beforeAddParameter.kt")
+            public void testAddParameter() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddParameter.kt");
+            }
+            
+            @TestMetadata("beforeAddParameterPreserveVisibility.kt")
+            public void testAddParameterPreserveVisibility() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddParameterPreserveVisibility.kt");
+            }
+            
             public void testAllFilesPresentInNothingToOverride() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("idea/testData/quickfix/override/nothingToOverride"), Pattern.compile("^before(\\w+)\\.kt$"), true);
             }
@@ -807,6 +817,11 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
             @TestMetadata("beforeRemoveOverride.kt")
             public void testRemoveOverride() throws Exception {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeRemoveOverride.kt");
+            }
+            
+            @TestMetadata("beforeRemoveParameter.kt")
+            public void testRemoveParameter() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeRemoveParameter.kt");
             }
             
             @TestMetadata("beforeRemoveParameterTwoTraits.kt")

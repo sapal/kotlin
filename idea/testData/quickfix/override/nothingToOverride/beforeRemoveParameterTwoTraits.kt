@@ -1,9 +1,9 @@
 // "Change function signature to 'override fun f()'" "true"
 trait A {
-    fun f();
+    fun f()
 }
 trait B {
-    fun f();
+    fun f()
 }
 
 class C : A, B {

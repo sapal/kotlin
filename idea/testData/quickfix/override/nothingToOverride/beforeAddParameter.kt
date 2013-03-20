@@ -4,5 +4,5 @@ trait A {
 }
 
 class B : A {
-    <caret>override fun f(a: Int) {}
+    <caret>override fun f() {}
 }

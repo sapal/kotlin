@@ -2,10 +2,7 @@
 trait A {
     fun f()
 }
-trait B {
-    fun f()
-}
 
-class C : A, B {
+class B : A {
     <caret>override fun f() {}
 }

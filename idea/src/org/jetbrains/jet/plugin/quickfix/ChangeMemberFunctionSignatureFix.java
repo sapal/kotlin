@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Fix that changes function signature to match one of super functions' signatures.
+ * Fix that changes member function's signature to match one of super functions' signatures.
  */
 public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunction> {
     private final List<SimpleFunctionDescriptor> possibleSignatures;
@@ -69,7 +69,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             return JetBundle.message("change.function.signature.action.single",
                                      getFunctionSignatureString(possibleSignatures.get(0)));
         else
-            return JetBundle.message("change.function.signature.action.multiple");     // TODO: test
+            return JetBundle.message("change.function.signature.action.multiple");
     }
 
     @NotNull
@@ -103,7 +103,6 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
 
     /**
      * Computes all the signatures a 'functionElement' could be changed to in order to remove NOTHING_TO_OVERRIDE error.
-     * Note that removed list contains JetNamedFunction elements which describe only function signature (they don't have a body).
      */
     @NotNull
     private List<SimpleFunctionDescriptor> computePossibleSignatures(JetNamedFunction functionElement) {
@@ -169,18 +168,27 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             }
             superIdx++;
         }
+
+        Visibility superVisibility = superFunction.getVisibility();
+        Visibility visibility = function.getVisibility();
+        Visibility newVisibility = superVisibility;
+        // If function has greater visibility than super function, keep function's visibility:
+        Integer compareVisibilities = Visibilities.compare(visibility, superVisibility);
+        if (compareVisibilities != null && compareVisibilities > 0) {
+            newVisibility = visibility;
+        }
         return DescriptorUtils.replaceValueParameters(
                 superFunction.copy(
                         function.getContainingDeclaration(),
                         Modality.OPEN,
-                        superFunction.getVisibility(),  // TODO: upgrade visibility to function's visibility
-                        CallableMemberDescriptor.Kind.DELEGATION, // TODO: check
+                        newVisibility,
+                        CallableMemberDescriptor.Kind.DELEGATION,
                         /* copyOverrides = */ true),
                 DescriptorUtils.fixParametersIndexes(newParameters));
     }
 
     /**
-     * Returns all open methods in superclasses which have the same name as 'functionDescriptor' (but possibly
+     * Returns all open functions in superclasses which have the same name as 'functionDescriptor' (but possibly
      * different parameters/return type).
      */
     @NotNull

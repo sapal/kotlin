@@ -150,7 +150,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
                             assert newBodyExpression != null;
                             newBodyExpression.replace(bodyExpression);
                         } else {
-                            newElement = JetPsiFactory.createFunction(project, signature.getText() + ";");
+                            newElement = JetPsiFactory.createFunction(project, signature.getText());
                         }
                         element.replace(newElement);
 
