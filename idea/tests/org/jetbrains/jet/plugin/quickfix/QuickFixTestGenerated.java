@@ -774,9 +774,14 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeAbstractSuperclass.kt");
             }
             
-            @TestMetadata("beforeChangeParameterTypeInlineMethod.kt")
-            public void testChangeParameterTypeInlineMethod() throws Exception {
-                doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeInlineMethod.kt");
+            @TestMetadata("beforeChangeParameterTypeInTrait.kt")
+            public void testChangeParameterTypeInTrait() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeInTrait.kt");
+            }
+            
+            @TestMetadata("beforeChangeParameterTypeMatchNames.kt")
+            public void testChangeParameterTypeMatchNames() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeMatchNames.kt");
             }
             
             @TestMetadata("beforeChangeParameterTypeModifyOrder.kt")
@@ -789,14 +794,14 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeOpenOverride.kt");
             }
             
+            @TestMetadata("beforeChangeParameterTypeSingleExpressionFunction.kt")
+            public void testChangeParameterTypeSingleExpressionFunction() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeSingleExpressionFunction.kt");
+            }
+            
             @TestMetadata("beforeChangeParameterTypeSuperTrait.kt")
             public void testChangeParameterTypeSuperTrait() throws Exception {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeSuperTrait.kt");
-            }
-            
-            @TestMetadata("beforeChangeParameterTypeTrait.kt")
-            public void testChangeParameterTypeTrait() throws Exception {
-                doTest("idea/testData/quickfix/override/nothingToOverride/beforeChangeParameterTypeTrait.kt");
             }
             
             @TestMetadata("beforeChangeReturnType.kt")

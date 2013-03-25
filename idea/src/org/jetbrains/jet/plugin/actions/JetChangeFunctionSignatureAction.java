@@ -74,7 +74,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     public boolean execute() {
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
-        if (!element.isValid()) {
+        if (!element.isValid() || signatures.isEmpty()) {
             return false;
         }
 
@@ -111,8 +111,9 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
 
             @Override
             public String getTextFor(SimpleFunctionDescriptor aValue) {
-                return OverrideUtil.createOverridedFunctionSignatureStringFromDescriptor(project,
-                                                                                         aValue,
+                return OverrideUtil.createOverridedFunctionSignatureStringFromDescriptor(
+                        project,
+                        aValue,
                         /* shortTypeNames = */ true);
             }
         };

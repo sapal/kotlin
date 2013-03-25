@@ -148,7 +148,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
     }
 
     /**
-     * Returns new visibility for 'function' modified in such a way to override 'superFunction'.
+     * Returns new visibility for 'function' modified to override 'superFunction'.
      */
     private static Visibility getVisibility(SimpleFunctionDescriptor function, SimpleFunctionDescriptor superFunction) {
         Visibility superVisibility = superFunction.getVisibility();
@@ -179,18 +179,19 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
     ) {
         int superIdx = 0;
         for (ValueParameterDescriptor superParameter : superParameters) {
-            if (matched.get(superIdx)) continue;
-            int idx = 0;
-            JetType superParameterType = superParameter.getType();
-            for (ValueParameterDescriptor parameter : parameters) {
-                JetType parameterType = parameter.getType();
-                if (!used.get(idx) && JetTypeChecker.INSTANCE.equalTypes(superParameterType, parameterType)) {
-                    used.set(idx, true);
-                    matched.set(superIdx, true);
-                    newParameters.set(superIdx, parameter);
-                    break;
+            if (!matched.get(superIdx)) {
+                int idx = 0;
+                JetType superParameterType = superParameter.getType();
+                for (ValueParameterDescriptor parameter : parameters) {
+                    JetType parameterType = parameter.getType();
+                    if (!used.get(idx) && JetTypeChecker.INSTANCE.equalTypes(superParameterType, parameterType)) {
+                        used.set(idx, true);
+                        matched.set(superIdx, true);
+                        newParameters.set(superIdx, parameter);
+                        break;
+                    }
+                    idx++;
                 }
-                idx++;
             }
             superIdx++;
         }
@@ -213,17 +214,19 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
     ) {
         int superIdx = 0;
         for (ValueParameterDescriptor superParameter : superParameters) {
-            int idx = 0;
-            Name superName = superParameter.getName();
-            for (ValueParameterDescriptor parameter : parameters) {
-                Name name = parameter.getName();
-                if (!used.get(idx) && name.equals(superName)) {
-                    used.set(idx, true);
-                    matched.set(superIdx, true);
-                    newParameters.set(superIdx, superParameter);
-                    break;
+            if (!matched.get(superIdx)) {
+                int idx = 0;
+                Name superName = superParameter.getName();
+                for (ValueParameterDescriptor parameter : parameters) {
+                    Name name = parameter.getName();
+                    if (!used.get(idx) && name.equals(superName)) {
+                        used.set(idx, true);
+                        matched.set(superIdx, true);
+                        newParameters.set(superIdx, superParameter);
+                        break;
+                    }
+                    idx++;
                 }
-                idx++;
             }
             superIdx++;
         }

@@ -3,6 +3,6 @@ trait A {
     fun f(a: Int)
 }
 
-trait B : A {
-    <caret>override fun f(a: String)
+class B : A {
+    <caret>override fun f(a: String) {}
 }
