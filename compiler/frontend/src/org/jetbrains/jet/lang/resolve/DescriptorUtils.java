@@ -48,29 +48,6 @@ import static org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor.NO_
 
 public class DescriptorUtils {
 
-    /**
-     * Returns function's copy with new parameter list.
-     */
-    @NotNull
-    public static SimpleFunctionDescriptor replaceValueParameters(@NotNull SimpleFunctionDescriptor function, @NotNull List<ValueParameterDescriptor> newParameters) {
-        SimpleFunctionDescriptorImpl descriptor = new SimpleFunctionDescriptorImpl(
-                function.getContainingDeclaration(),
-                function.getAnnotations(),
-                function.getName(),
-                function.getKind());
-        ReceiverParameterDescriptor receiver = function.getReceiverParameter();
-        descriptor.initialize(
-                receiver == null ? null : receiver.getType(),
-                function.getExpectedThisObject(),
-                function.getTypeParameters(),
-                newParameters,
-                function.getReturnType(),
-                function.getModality(),
-                function.getVisibility(),
-                function.isInline());
-        return descriptor;
-    }
-
     @NotNull
     public static <D extends CallableDescriptor> D substituteBounds(@NotNull D functionDescriptor) {
         List<TypeParameterDescriptor> typeParameters = functionDescriptor.getTypeParameters();
@@ -555,21 +532,4 @@ public class DescriptorUtils {
                && methodTypeParameters.isEmpty();
     }
 
-    public static List<ValueParameterDescriptor> fixParametersIndexes(List<ValueParameterDescriptor> parameters) {
-        List<ValueParameterDescriptor> fixedParameters = new ArrayList<ValueParameterDescriptor>(parameters.size());
-        int idx = 0;
-        for (ValueParameterDescriptor parameter : parameters) {
-            fixedParameters.add(new ValueParameterDescriptorImpl(
-                    parameter.getContainingDeclaration(),
-                    idx,
-                    parameter.getAnnotations(),
-                    parameter.getName(),
-                    parameter.getReturnType(),
-                    parameter.declaresDefaultValue(),
-                    parameter.getVarargElementType())
-            );
-            idx++;
-        }
-        return fixedParameters;
-    }
 }

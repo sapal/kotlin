@@ -26,6 +26,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.codegen.CodegenUtil;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
@@ -136,14 +137,14 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
 
         Visibility newVisibility = getVisibility(function, superFunction);
 
-        return DescriptorUtils.replaceValueParameters(
+        return CodegenUtil.replaceFunctionParameters(
                 superFunction.copy(
                         function.getContainingDeclaration(),
                         Modality.OPEN,
                         newVisibility,
                         CallableMemberDescriptor.Kind.DELEGATION,
                         /* copyOverrides = */ true),
-                DescriptorUtils.fixParametersIndexes(newParameters));
+                newParameters);
     }
 
     /**
