@@ -39,7 +39,7 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetChangeFunctionSignatureAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
-import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
+import org.jetbrains.jet.plugin.codeInsight.OverrideUtil;
 
 import java.util.*;
 
@@ -73,7 +73,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
 
     @NotNull
     private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature, boolean shortTypeNames) {
-        return DescriptorToDeclarationUtil.createOverridedFunctionSignatureStringFromDescriptor(
+        return OverrideUtil.createOverridedFunctionSignatureStringFromDescriptor(
                 element.getProject(), functionSignature, shortTypeNames);
     }
 
