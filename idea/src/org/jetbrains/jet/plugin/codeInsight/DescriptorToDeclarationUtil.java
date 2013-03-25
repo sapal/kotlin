@@ -61,8 +61,9 @@ public final class DescriptorToDeclarationUtil {
         return visibility != Visibilities.INTERNAL ? visibility.toString() + " ": "";
     }
 
-    private static String renderType(JetType type) {
-        return DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(type);
+    private static String renderType(JetType type, boolean shortNames) {
+        if (shortNames) return DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(type);
+        else return DescriptorRenderer.TEXT.renderType(type);
     }
 
     private static void addReceiverParameter(CallableDescriptor descriptor, StringBuilder bodyBuilder) {
@@ -75,13 +76,14 @@ public final class DescriptorToDeclarationUtil {
     @NotNull
     public static String createOverridedFunctionSignatureStringFromDescriptor(
             @NotNull Project project,
-            @NotNull SimpleFunctionDescriptor descriptor
+            @NotNull SimpleFunctionDescriptor descriptor,
+            boolean shortTypeNames
     ) {
-        return createOverridedFunctionDeclarationFromDescriptor(project, descriptor).getText().trim();
+        return createOverridedFunctionDeclarationFromDescriptor(project, descriptor, shortTypeNames).getText().trim();
     }
 
     @NotNull
-    public static JetNamedFunction createOverridedFunctionDeclarationFromDescriptor(@NotNull Project project, @NotNull SimpleFunctionDescriptor descriptor) {
+    public static JetNamedFunction createOverridedFunctionDeclarationFromDescriptor(@NotNull Project project, @NotNull SimpleFunctionDescriptor descriptor, boolean shortNames) {
         StringBuilder bodyBuilder = new StringBuilder();
         bodyBuilder.append(displayableVisibility(descriptor));
         bodyBuilder.append("override fun ");
@@ -100,7 +102,7 @@ public final class DescriptorToDeclarationUtil {
                 if (!upperBounds.isEmpty()) {
                     boolean firstUpperBound = true;
                     for (JetType upperBound : upperBounds) {
-                        String upperBoundText = ": " + renderType(upperBound);
+                        String upperBoundText = ": " + renderType(upperBound, shortNames);
                         if (!KotlinBuiltIns.getInstance().getDefaultBound().equals(upperBound)) {
                             if (firstUpperBound) {
                                 bodyBuilder.append(upperBoundText);
@@ -141,7 +143,7 @@ public final class DescriptorToDeclarationUtil {
             first = false;
             bodyBuilder.append(parameterDescriptor.getName());
             bodyBuilder.append(": ");
-            bodyBuilder.append(renderType(parameterDescriptor.getType()));
+            bodyBuilder.append(renderType(parameterDescriptor.getType(), shortNames));
 
             //if (!isAbstractFun) {
             //    delegationBuilder.append(parameterDescriptor.getName());
@@ -156,7 +158,7 @@ public final class DescriptorToDeclarationUtil {
 
         boolean returnsNotUnit = returnType != null && !builtIns.getUnitType().equals(returnType);
         if (returnsNotUnit) {
-            bodyBuilder.append(": ").append(renderType(returnType));
+            bodyBuilder.append(": ").append(renderType(returnType, shortNames));
         }
         if (!whereRestrictions.isEmpty()) {
             bodyBuilder.append("\n").append("where ").append(StringUtil.join(whereRestrictions, ", "));

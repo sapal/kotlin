@@ -63,14 +63,17 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
     public String getText() {
         if (possibleSignatures.size() == 1)
             return JetBundle.message("change.function.signature.action.single",
-                                     getFunctionSignatureString(possibleSignatures.get(0)));
+                                     getFunctionSignatureString(
+                                             possibleSignatures.get(0),
+                                             /* shortTypeNames = */ true));
         else
             return JetBundle.message("change.function.signature.action.multiple");
     }
 
     @NotNull
-    private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature) {
-        return DescriptorToDeclarationUtil.createOverridedFunctionSignatureStringFromDescriptor(element.getProject(), functionSignature);
+    private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature, boolean shortTypeNames) {
+        return DescriptorToDeclarationUtil.createOverridedFunctionSignatureStringFromDescriptor(
+                element.getProject(), functionSignature, shortTypeNames);
     }
 
     @NotNull
@@ -109,7 +112,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         for (SimpleFunctionDescriptor superFunction : superFunctions) {
             if (!superFunction.getKind().isReal()) continue;
             SimpleFunctionDescriptor signature = changeSignatureToMatch(functionDescriptor, superFunction);
-            possibleSignatures.put(getFunctionSignatureString(signature), signature);
+            possibleSignatures.put(getFunctionSignatureString(signature, /* shortTypeNames = */ false), signature);
         }
         return new ArrayList<SimpleFunctionDescriptor>(possibleSignatures.values());
     }

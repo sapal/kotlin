@@ -33,10 +33,12 @@ import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
+import org.jetbrains.jet.plugin.codeInsight.ReferenceToClassesShortening;
 
 import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -48,7 +50,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     private final Project project;
     private final Editor editor;
     private final JetNamedFunction element;
-    private final List<String> signatures;
+    private final List<SimpleFunctionDescriptor> signatures;
 
     /**
      * @param project Project where action takes place.
@@ -65,17 +67,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
         this.project = project;
         this.editor = editor;
         this.element = element;
-        this.signatures = prepareSignatures(signatures);
-    }
-
-    private List<String> prepareSignatures(Collection<SimpleFunctionDescriptor> signatures) {
-        List<String> signatureStrings = new ArrayList<String>(signatures.size());
-
-        Project project = element.getProject();
-        for (SimpleFunctionDescriptor descriptor : signatures) {
-            signatureStrings.add(DescriptorToDeclarationUtil.createOverridedFunctionSignatureStringFromDescriptor(project, descriptor));
-        }
-        return signatureStrings;
+        this.signatures = new ArrayList<SimpleFunctionDescriptor>(signatures);
     }
 
     @Override
@@ -97,7 +89,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     }
 
     BaseListPopupStep getSignaturePopup() {
-        return new BaseListPopupStep<String>(
+        return new BaseListPopupStep<SimpleFunctionDescriptor>(
                 JetBundle.message("change.function.signature.chooser.title"), signatures) {
             @Override
             public boolean isAutoSelectionEnabled() {
@@ -105,7 +97,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             }
 
             @Override
-            public PopupStep onChosen(String selectedValue, boolean finalChoice) {
+            public PopupStep onChosen(SimpleFunctionDescriptor selectedValue, boolean finalChoice) {
                 if (finalChoice) {
                     changeSignature(element, project, selectedValue);
                 }
@@ -113,13 +105,25 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             }
 
             @Override
-            public Icon getIconFor(String aValue) {
+            public Icon getIconFor(SimpleFunctionDescriptor aValue) {
                 return PlatformIcons.FUNCTION_ICON;
+            }
+
+            @Override
+            public String getTextFor(SimpleFunctionDescriptor aValue) {
+                return DescriptorToDeclarationUtil.createOverridedFunctionSignatureStringFromDescriptor(project,
+                        aValue,
+                        /* shortTypeNames = */ true);
             }
         };
     }
 
-    static void changeSignature(final JetNamedFunction element, final Project project, final String signature) {
+    static void changeSignature(final JetNamedFunction element, final Project project, final SimpleFunctionDescriptor signature) {
+        final String signatureString = DescriptorToDeclarationUtil.createOverridedFunctionSignatureStringFromDescriptor(
+                project,
+                signature,
+                /* shortTypeNames = */ false);
+
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
         CommandProcessor.getInstance().executeCommand(project, new Runnable() {
@@ -133,19 +137,20 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
 
                         if (bodyExpression != null) {
                             if (element.hasBlockBody()) {
-                                newElement = JetPsiFactory.createFunction(project, signature + "{}");
+                                newElement = JetPsiFactory.createFunction(project, signatureString + "{}");
                             }
                             else {
-                                newElement = JetPsiFactory.createFunction(project, signature + "= 0");
+                                newElement = JetPsiFactory.createFunction(project, signatureString + "= 0");
                             }
                             JetExpression newBodyExpression = newElement.getBodyExpression();
                             assert newBodyExpression != null;
                             newBodyExpression.replace(bodyExpression);
                         }
                         else {
-                            newElement = JetPsiFactory.createFunction(project, signature);
+                            newElement = JetPsiFactory.createFunction(project, signatureString);
                         }
-                        element.replace(newElement);
+                        newElement = (JetNamedFunction) element.replace(newElement);
+                        ReferenceToClassesShortening.compactReferenceToClasses(Collections.singletonList(newElement));
                     }
                 });
             }
