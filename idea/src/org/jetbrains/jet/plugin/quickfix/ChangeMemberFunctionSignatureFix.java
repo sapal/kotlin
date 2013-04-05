@@ -249,10 +249,8 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             JetScope scope = type.getMemberScope();
             for (FunctionDescriptor function : scope.getFunctions(name)) {
                 if (!function.getKind().isReal()) continue;
-                assert function instanceof FunctionDescriptor;
-                FunctionDescriptor simpleFunctionDescriptor = (FunctionDescriptor) function;
-                if (simpleFunctionDescriptor.getModality().isOverridable()) 
-                    superFunctions.add(simpleFunctionDescriptor);
+                if (function.getModality().isOverridable())
+                    superFunctions.add(function);
             }
         }
         return superFunctions;
