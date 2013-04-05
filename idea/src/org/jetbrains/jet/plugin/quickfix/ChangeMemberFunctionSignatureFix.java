@@ -26,8 +26,8 @@ import com.intellij.psi.PsiFile;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.codegen.CodegenUtil;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.impl.FunctionDescriptorUtil;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
@@ -38,7 +38,7 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetChangeFunctionSignatureAction;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
+import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManagerUtil;
 import org.jetbrains.jet.plugin.codeInsight.OverrideUtil;
 
 import java.util.*;
@@ -73,7 +73,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
 
     @NotNull
     private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature, boolean shortTypeNames) {
-        return OverrideUtil.createOverridedFunctionSignatureStringFromDescriptor(
+        return OverrideUtil.createOverridenFunctionSignatureStringFromDescriptor(
                 element.getProject(), functionSignature, shortTypeNames);
     }
 
@@ -104,8 +104,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
      */
     @NotNull
     private List<SimpleFunctionDescriptor> computePossibleSignatures(JetNamedFunction functionElement) {
-        Project project = functionElement.getProject();
-        BindingContext context = KotlinCacheManager.getInstance(project).getDeclarationsFromProject().getBindingContext();
+        BindingContext context = KotlinCacheManagerUtil.getDeclarationsFromProject(functionElement).getBindingContext();
         SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
         assert functionDescriptor != null;
         List<SimpleFunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
@@ -137,7 +136,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
 
         Visibility newVisibility = getVisibility(function, superFunction);
 
-        return CodegenUtil.replaceFunctionParameters(
+        return FunctionDescriptorUtil.replaceFunctionParameters(
                 superFunction.copy(
                         function.getContainingDeclaration(),
                         Modality.OPEN,

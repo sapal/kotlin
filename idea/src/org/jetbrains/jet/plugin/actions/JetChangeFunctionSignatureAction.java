@@ -88,7 +88,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
         return true;
     }
 
-    BaseListPopupStep getSignaturePopup() {
+    private BaseListPopupStep getSignaturePopup() {
         return new BaseListPopupStep<SimpleFunctionDescriptor>(
                 JetBundle.message("change.function.signature.chooser.title"), signatures) {
             @Override
@@ -109,9 +109,10 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
                 return PlatformIcons.FUNCTION_ICON;
             }
 
+            @NotNull
             @Override
             public String getTextFor(SimpleFunctionDescriptor aValue) {
-                return OverrideUtil.createOverridedFunctionSignatureStringFromDescriptor(
+                return OverrideUtil.createOverridenFunctionSignatureStringFromDescriptor(
                         project,
                         aValue,
                         /* shortTypeNames = */ true);
@@ -119,8 +120,8 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
         };
     }
 
-    static void changeSignature(final JetNamedFunction element, final Project project, final SimpleFunctionDescriptor signature) {
-        final String signatureString = OverrideUtil.createOverridedFunctionSignatureStringFromDescriptor(
+    private static void changeSignature(final JetNamedFunction element, final Project project, SimpleFunctionDescriptor signature) {
+        final String signatureString = OverrideUtil.createOverridenFunctionSignatureStringFromDescriptor(
                 project,
                 signature,
                 /* shortTypeNames = */ false);
