@@ -131,9 +131,8 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         // Parameters in this function, which are used in new function signature:
         BitSet used = new BitSet(superParameters.size());
 
-        matchParametersWithTheSameName(superParameters, parameters, newParameters, matched, used);
-
-        matchParametersWithTheSameType(superParameters, parameters, newParameters, matched, used);
+        matchParameters(MATCH_NAMES, superParameters, parameters, newParameters, matched, used);
+        matchParameters(MATCH_TYPES, superParameters, parameters, newParameters, matched, used);
 
         Visibility newVisibility = getVisibility(function, superFunction);
 
@@ -162,73 +161,68 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         return newVisibility;
     }
 
-    /**
-     * Match function's parameters with super function's parameters of the same type (but possibly different names). Preserve ordering.
-     * @param superParameters - super function's parameters
-     * @param parameters - function's parameters
-     * @param newParameters - new parameters (may be modified by this function)
-     * @param matched - true iff this parameter in super function is matched by some parameter in function (may be modified by this function)
-     * @param used - true iff this parameter in function is used to match some parameter in super function (may be modified by this function)
-     */
-    private static void matchParametersWithTheSameType(
-            List<ValueParameterDescriptor> superParameters,
-            List<ValueParameterDescriptor> parameters,
-            List<ValueParameterDescriptor> newParameters,
-            BitSet matched,
-            BitSet used
-    ) {
-        int superIdx = 0;
-        for (ValueParameterDescriptor superParameter : superParameters) {
-            if (!matched.get(superIdx)) {
-                int idx = 0;
-                JetType superParameterType = superParameter.getType();
-                for (ValueParameterDescriptor parameter : parameters) {
-                    JetType parameterType = parameter.getType();
-                    if (!used.get(idx) && JetTypeChecker.INSTANCE.equalTypes(superParameterType, parameterType)) {
-                        used.set(idx, true);
-                        matched.set(superIdx, true);
-                        newParameters.set(superIdx, parameter);
-                        break;
-                    }
-                    idx++;
-                }
-            }
-            superIdx++;
-        }
+    /** Helper interface for matchParameters(..) method. */
+    private interface ParameterChooser {
+        /**
+         * Checks if 'parameter' may be used to match 'superParameter'.
+         * If so, returns (possibly modified) descriptor to be used as the new parameter.
+         * If not, returns null.
+         */
+        @Nullable
+        ValueParameterDescriptor choose(@NotNull ValueParameterDescriptor parameter, @NotNull ValueParameterDescriptor superParameter);
     }
 
+    private static final ParameterChooser MATCH_NAMES = new ParameterChooser() {
+        @Nullable
+        @Override
+        public ValueParameterDescriptor choose(
+                @NotNull ValueParameterDescriptor parameter,
+                @NotNull ValueParameterDescriptor superParameter
+        ) {
+            return parameter.getName().equals(superParameter.getName()) ? superParameter : null;
+        }
+    };
+
+    private static final ParameterChooser MATCH_TYPES = new ParameterChooser() {
+        @Nullable
+        @Override
+        public ValueParameterDescriptor choose(
+                @NotNull ValueParameterDescriptor parameter,
+                @NotNull ValueParameterDescriptor superParameter
+        ) {
+            return JetTypeChecker.INSTANCE.equalTypes(parameter.getType(), superParameter.getType()) ? parameter : null;
+        }
+    };
+
     /**
-     * Match function's parameters with super function's parameters of the same name (but possibly different types). Don't preserver ordering.
+     * Match function's parameters with super function's parameters using parameterChooser.
+     * Doesn't have to preserve ordering, parameter names or types.
      * @param superParameters - super function's parameters
      * @param parameters - function's parameters
      * @param newParameters - new parameters (may be modified by this function)
      * @param matched - true iff this parameter in super function is matched by some parameter in function (may be modified by this function)
      * @param used - true iff this parameter in function is used to match some parameter in super function (may be modified by this function)
      */
-    private static void matchParametersWithTheSameName(
-            List<ValueParameterDescriptor> superParameters,
-            List<ValueParameterDescriptor> parameters,
-            List<ValueParameterDescriptor> newParameters,
-            BitSet matched,
-            BitSet used
+    private static void matchParameters(
+            @NotNull ParameterChooser parameterChooser,
+            @NotNull List<ValueParameterDescriptor> superParameters,
+            @NotNull List<ValueParameterDescriptor> parameters,
+            @NotNull List<ValueParameterDescriptor> newParameters,
+            @NotNull BitSet matched,
+            @NotNull BitSet used
     ) {
-        int superIdx = 0;
         for (ValueParameterDescriptor superParameter : superParameters) {
-            if (!matched.get(superIdx)) {
-                int idx = 0;
-                Name superName = superParameter.getName();
+            if (!matched.get(superParameter.getIndex())) {
                 for (ValueParameterDescriptor parameter : parameters) {
-                    Name name = parameter.getName();
-                    if (!used.get(idx) && name.equals(superName)) {
-                        used.set(idx, true);
-                        matched.set(superIdx, true);
-                        newParameters.set(superIdx, superParameter);
+                    ValueParameterDescriptor choice = parameterChooser.choose(parameter, superParameter);
+                    if (!used.get(parameter.getIndex()) && choice != null) {
+                        used.set(parameter.getIndex(), true);
+                        matched.set(superParameter.getIndex(), true);
+                        newParameters.set(superParameter.getIndex(), choice);
                         break;
                     }
-                    idx++;
                 }
             }
-            superIdx++;
         }
     }
 
