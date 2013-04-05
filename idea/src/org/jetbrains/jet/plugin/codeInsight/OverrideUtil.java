@@ -82,7 +82,7 @@ public class OverrideUtil {
     @NotNull
     public static String createOverridenFunctionSignatureStringFromDescriptor(
             @NotNull Project project,
-            @NotNull SimpleFunctionDescriptor descriptor,
+            @NotNull FunctionDescriptor descriptor,
             boolean shortTypeNames
     ) {
         JetNamedFunction functionElement = createOverridenFunctionElementFromDescriptor(project, descriptor, shortTypeNames);
@@ -95,7 +95,7 @@ public class OverrideUtil {
     @NotNull
     public static JetNamedFunction createOverridenFunctionElementFromDescriptor(
             @NotNull Project project,
-            @NotNull SimpleFunctionDescriptor descriptor,
+            @NotNull FunctionDescriptor descriptor,
             boolean shortNames
     ) {
         StringBuilder bodyBuilder = new StringBuilder();

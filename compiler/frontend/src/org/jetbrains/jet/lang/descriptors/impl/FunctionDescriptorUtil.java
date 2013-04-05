@@ -145,11 +145,11 @@ public class FunctionDescriptorUtil {
      * -- it will be fixed by this function.
      */
     @NotNull
-    public static SimpleFunctionDescriptor replaceFunctionParameters(
-            @NotNull SimpleFunctionDescriptor function,
+    public static FunctionDescriptor replaceFunctionParameters(
+            @NotNull FunctionDescriptor function,
             @NotNull List<ValueParameterDescriptor> newParameters
     ) {
-        SimpleFunctionDescriptorImpl descriptor = new SimpleFunctionDescriptorImpl(
+        FunctionDescriptorImpl descriptor = new SimpleFunctionDescriptorImpl(
                 function.getContainingDeclaration(),
                 function.getAnnotations(),
                 function.getName(),
@@ -179,8 +179,7 @@ public class FunctionDescriptorUtil {
                 parameters,
                 function.getReturnType(),
                 function.getModality(),
-                function.getVisibility(),
-                function.isInline());
+                function.getVisibility());
         return descriptor;
     }
 }

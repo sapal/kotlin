@@ -27,7 +27,8 @@ import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
@@ -50,7 +51,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     private final Project project;
     private final Editor editor;
     private final JetNamedFunction element;
-    private final List<SimpleFunctionDescriptor> signatures;
+    private final List<FunctionDescriptor> signatures;
 
     /**
      * @param project Project where action takes place.
@@ -62,12 +63,12 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             @NotNull Project project,
             @NotNull Editor editor,
             @NotNull JetNamedFunction element,
-            @NotNull Collection<SimpleFunctionDescriptor> signatures
+            @NotNull Collection<FunctionDescriptor> signatures
     ) {
         this.project = project;
         this.editor = editor;
         this.element = element;
-        this.signatures = new ArrayList<SimpleFunctionDescriptor>(signatures);
+        this.signatures = new ArrayList<FunctionDescriptor>(signatures);
     }
 
     @Override
@@ -89,7 +90,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     }
 
     private BaseListPopupStep getSignaturePopup() {
-        return new BaseListPopupStep<SimpleFunctionDescriptor>(
+        return new BaseListPopupStep<FunctionDescriptor>(
                 JetBundle.message("change.function.signature.chooser.title"), signatures) {
             @Override
             public boolean isAutoSelectionEnabled() {
@@ -97,7 +98,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             }
 
             @Override
-            public PopupStep onChosen(SimpleFunctionDescriptor selectedValue, boolean finalChoice) {
+            public PopupStep onChosen(FunctionDescriptor selectedValue, boolean finalChoice) {
                 if (finalChoice) {
                     changeSignature(element, project, selectedValue);
                 }
@@ -105,13 +106,13 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             }
 
             @Override
-            public Icon getIconFor(SimpleFunctionDescriptor aValue) {
+            public Icon getIconFor(FunctionDescriptor aValue) {
                 return PlatformIcons.FUNCTION_ICON;
             }
 
             @NotNull
             @Override
-            public String getTextFor(SimpleFunctionDescriptor aValue) {
+            public String getTextFor(FunctionDescriptor aValue) {
                 return OverrideUtil.createOverridenFunctionSignatureStringFromDescriptor(
                         project,
                         aValue,
@@ -120,7 +121,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
         };
     }
 
-    private static void changeSignature(final JetNamedFunction element, final Project project, SimpleFunctionDescriptor signature) {
+    private static void changeSignature(final JetNamedFunction element, final Project project, FunctionDescriptor signature) {
         final String signatureString = OverrideUtil.createOverridenFunctionSignatureStringFromDescriptor(
                 project,
                 signature,

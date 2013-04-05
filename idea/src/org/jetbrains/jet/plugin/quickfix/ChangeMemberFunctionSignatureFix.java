@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.plugin.quickfix;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
@@ -47,7 +48,7 @@ import java.util.*;
  * Fix that changes member function's signature to match one of super functions' signatures.
  */
 public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunction> {
-    private final List<SimpleFunctionDescriptor> possibleSignatures;
+    private final List<FunctionDescriptor> possibleSignatures;
 
     public ChangeMemberFunctionSignatureFix(@NotNull JetNamedFunction element) {
         super(element);
@@ -72,7 +73,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
     }
 
     @NotNull
-    private String getFunctionSignatureString(@NotNull SimpleFunctionDescriptor functionSignature, boolean shortTypeNames) {
+    private String getFunctionSignatureString(@NotNull FunctionDescriptor functionSignature, boolean shortTypeNames) {
         return OverrideUtil.createOverridenFunctionSignatureStringFromDescriptor(
                 element.getProject(), functionSignature, shortTypeNames);
     }
@@ -103,32 +104,32 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
      * Computes all the signatures a 'functionElement' could be changed to in order to remove NOTHING_TO_OVERRIDE error.
      */
     @NotNull
-    private List<SimpleFunctionDescriptor> computePossibleSignatures(JetNamedFunction functionElement) {
+    private List<FunctionDescriptor> computePossibleSignatures(JetNamedFunction functionElement) {
         BindingContext context = KotlinCacheManagerUtil.getDeclarationsFromProject(functionElement).getBindingContext();
-        SimpleFunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
-        assert functionDescriptor != null;
-        List<SimpleFunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
-        Map<String, SimpleFunctionDescriptor> possibleSignatures = Maps.newHashMap();
-        for (SimpleFunctionDescriptor superFunction : superFunctions) {
+        FunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
+        if (functionDescriptor == null) return Lists.newArrayList();
+        List<FunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
+        Map<String, FunctionDescriptor> possibleSignatures = Maps.newHashMap();
+        for (FunctionDescriptor superFunction : superFunctions) {
             if (!superFunction.getKind().isReal()) continue;
-            SimpleFunctionDescriptor signature = changeSignatureToMatch(functionDescriptor, superFunction);
+            FunctionDescriptor signature = changeSignatureToMatch(functionDescriptor, superFunction);
             possibleSignatures.put(getFunctionSignatureString(signature, /* shortTypeNames = */ false), signature);
         }
-        return new ArrayList<SimpleFunctionDescriptor>(possibleSignatures.values());
+        return Lists.newArrayList(possibleSignatures.values());
     }
 
     /**
      *  Changes function's signature to match superFunction's signature. Returns new descriptor.
      */
-    private static SimpleFunctionDescriptor changeSignatureToMatch(SimpleFunctionDescriptor function, SimpleFunctionDescriptor superFunction) {
+    private static FunctionDescriptor changeSignatureToMatch(FunctionDescriptor function, FunctionDescriptor superFunction) {
         List<ValueParameterDescriptor> superParameters = superFunction.getValueParameters();
         List<ValueParameterDescriptor> parameters = function.getValueParameters();
-        List<ValueParameterDescriptor> newParameters = new ArrayList<ValueParameterDescriptor>(superParameters);
+        List<ValueParameterDescriptor> newParameters = Lists.newArrayList(superParameters);
 
         // Parameters in superFunction, which are matched in new function signature:
-        ArrayList<Boolean> matched = new ArrayList<Boolean>(Collections.nCopies(superParameters.size(), false));
+        BitSet matched = new BitSet(superParameters.size());
         // Parameters in this function, which are used in new function signature:
-        ArrayList<Boolean> used = new ArrayList<Boolean>(Collections.nCopies(parameters.size(), false));
+        BitSet used = new BitSet(superParameters.size());
 
         matchParametersWithTheSameName(superParameters, parameters, newParameters, matched, used);
 
@@ -149,7 +150,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
     /**
      * Returns new visibility for 'function' modified to override 'superFunction'.
      */
-    private static Visibility getVisibility(SimpleFunctionDescriptor function, SimpleFunctionDescriptor superFunction) {
+    private static Visibility getVisibility(FunctionDescriptor function, FunctionDescriptor superFunction) {
         Visibility superVisibility = superFunction.getVisibility();
         Visibility visibility = function.getVisibility();
         Visibility newVisibility = superVisibility;
@@ -173,8 +174,8 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             List<ValueParameterDescriptor> superParameters,
             List<ValueParameterDescriptor> parameters,
             List<ValueParameterDescriptor> newParameters,
-            ArrayList<Boolean> matched,
-            ArrayList<Boolean> used
+            BitSet matched,
+            BitSet used
     ) {
         int superIdx = 0;
         for (ValueParameterDescriptor superParameter : superParameters) {
@@ -208,8 +209,8 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             List<ValueParameterDescriptor> superParameters,
             List<ValueParameterDescriptor> parameters,
             List<ValueParameterDescriptor> newParameters,
-            ArrayList<Boolean> matched,
-            ArrayList<Boolean> used
+            BitSet matched,
+            BitSet used
     ) {
         int superIdx = 0;
         for (ValueParameterDescriptor superParameter : superParameters) {
@@ -236,9 +237,9 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
      * different parameters/return type).
      */
     @NotNull
-    private static List<SimpleFunctionDescriptor> getPossibleSuperFunctionsDescriptors(@NotNull SimpleFunctionDescriptor functionDescriptor) {
+    private static List<FunctionDescriptor> getPossibleSuperFunctionsDescriptors(@NotNull FunctionDescriptor functionDescriptor) {
         DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
-        List<SimpleFunctionDescriptor> superFunctions = new LinkedList<SimpleFunctionDescriptor>();
+        List<FunctionDescriptor> superFunctions = new LinkedList<FunctionDescriptor>();
         if (!(containingDeclaration instanceof ClassDescriptor)) return superFunctions;
         ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
 
@@ -248,8 +249,8 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             JetScope scope = type.getMemberScope();
             for (FunctionDescriptor function : scope.getFunctions(name)) {
                 if (!function.getKind().isReal()) continue;
-                assert function instanceof SimpleFunctionDescriptor;
-                SimpleFunctionDescriptor simpleFunctionDescriptor = (SimpleFunctionDescriptor) function;
+                assert function instanceof FunctionDescriptor;
+                FunctionDescriptor simpleFunctionDescriptor = (FunctionDescriptor) function;
                 if (simpleFunctionDescriptor.getModality().isOverridable()) 
                     superFunctions.add(simpleFunctionDescriptor);
             }
