@@ -78,7 +78,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             return false;
         }
 
-        if (signatures.size() == 1) {
+        if (signatures.size() == 1 || !editor.getComponent().isShowing()) {
             changeSignature(element, project, signatures.get(0));
         }
         else {

@@ -152,7 +152,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
      */
     private static Visibility getVisibility(FunctionDescriptor function, FunctionDescriptor superFunction) {
         ArrayDeque<CallableMemberDescriptor> descriptors =
-                Queues.<CallableMemberDescriptor>newArrayDeque(Arrays.asList(function, superFunction));
+                Queues.<CallableMemberDescriptor>newArrayDeque(Arrays.asList(superFunction, function));
         return VisibilityUtil.findMemberWithMaxVisibility(descriptors).getVisibility();
     }
 
