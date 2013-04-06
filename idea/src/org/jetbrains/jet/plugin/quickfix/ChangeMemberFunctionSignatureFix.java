@@ -18,6 +18,7 @@ package org.jetbrains.jet.plugin.quickfix;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
 import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.openapi.command.CommandProcessor;
@@ -32,6 +33,7 @@ import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.resolve.VisibilityUtil;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
@@ -133,13 +135,11 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         matchParameters(MATCH_NAMES, superParameters, parameters, newParameters, matched, used);
         matchParameters(MATCH_TYPES, superParameters, parameters, newParameters, matched, used);
 
-        Visibility newVisibility = getVisibility(function, superFunction);
-
         FunctionDescriptor newFunction = org.jetbrains.jet.lang.descriptors.impl.FunctionDescriptorUtil.replaceFunctionParameters(
                 superFunction.copy(
                         function.getContainingDeclaration(),
                         Modality.OPEN,
-                        newVisibility,
+                        getVisibility(function, superFunction),
                         CallableMemberDescriptor.Kind.DELEGATION,
                         /* copyOverrides = */ true),
                 newParameters);
@@ -151,15 +151,9 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
      * Returns new visibility for 'function' modified to override 'superFunction'.
      */
     private static Visibility getVisibility(FunctionDescriptor function, FunctionDescriptor superFunction) {
-        Visibility superVisibility = superFunction.getVisibility();
-        Visibility visibility = function.getVisibility();
-        Visibility newVisibility = superVisibility;
-        // If function has greater visibility than super function, keep function's visibility:
-        Integer compareVisibilities = Visibilities.compare(visibility, superVisibility);
-        if (compareVisibilities != null && compareVisibilities > 0) {
-            newVisibility = visibility;
-        }
-        return newVisibility;
+        ArrayDeque<CallableMemberDescriptor> descriptors =
+                Queues.<CallableMemberDescriptor>newArrayDeque(Arrays.asList(function, superFunction));
+        return VisibilityUtil.findMemberWithMaxVisibility(descriptors).getVisibility();
     }
 
     /** Helper interface for matchParameters(..) method. */
