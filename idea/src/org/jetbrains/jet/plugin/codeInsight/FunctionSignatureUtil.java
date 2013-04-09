@@ -20,9 +20,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
-public class FunctionDescriptorUtil {
+public class FunctionSignatureUtil {
 
-    private FunctionDescriptorUtil() {
+    private FunctionSignatureUtil() {
     }
 
     @NotNull

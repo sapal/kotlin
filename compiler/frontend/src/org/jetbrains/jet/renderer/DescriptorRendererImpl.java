@@ -73,7 +73,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             boolean classWithPrimaryConstructor,
             boolean verbose,
             boolean unitReturnType,
-            boolean normalizedVisibilities, @NotNull ValueParametersHandler handler,
+            boolean normalizedVisibilities,
+            @NotNull ValueParametersHandler handler,
             @NotNull TextFormat textFormat,
             @NotNull Collection<FqName> excludedAnnotationClasses
     ) {
