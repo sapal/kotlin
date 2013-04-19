@@ -119,8 +119,7 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
             DeclarationDescriptor descriptor = selectedElement.getDescriptor();
             if (descriptor instanceof SimpleFunctionDescriptor) {
                 overridingMembers.add(overrideFunction(file.getProject(),
-                                                       (SimpleFunctionDescriptor) descriptor /* shortTypeNames = */
-                ));
+                                                       (SimpleFunctionDescriptor) descriptor));
             }
             else if (descriptor instanceof PropertyDescriptor) {
                 overridingMembers.add(
