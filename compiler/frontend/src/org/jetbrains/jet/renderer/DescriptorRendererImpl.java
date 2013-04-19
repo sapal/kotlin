@@ -59,6 +59,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private final boolean normalizedVisibilities;
     private final boolean showInternalKeyword;
     @NotNull
+    private final OverrideRenderingPolicy overrideRenderingPolicy;
+    @NotNull
     private final ValueParametersHandler handler;
     @NotNull
     private final TextFormat textFormat;
@@ -76,6 +78,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             boolean unitReturnType,
             boolean normalizedVisibilities,
             boolean showInternalKeyword,
+            @NotNull OverrideRenderingPolicy overrideRenderingPolicy,
             @NotNull ValueParametersHandler handler,
             @NotNull TextFormat textFormat,
             @NotNull Collection<FqName> excludedAnnotationClasses
@@ -90,6 +93,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         this.unitReturnType = unitReturnType;
         this.normalizedVisibilities = normalizedVisibilities;
         this.showInternalKeyword = showInternalKeyword;
+        this.overrideRenderingPolicy = overrideRenderingPolicy;
         this.debugMode = debugMode;
         this.textFormat = textFormat;
         this.excludedAnnotationClasses = Sets.newHashSet(excludedAnnotationClasses);
@@ -338,7 +342,11 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
     private void renderModalityForCallable(@NotNull CallableMemberDescriptor callable, @NotNull StringBuilder builder) {
         if (!DescriptorUtils.isTopLevelDeclaration(callable) || callable.getModality() != Modality.FINAL) {
-            if (overridesSomething(callable) && callable.getModality() == Modality.OPEN) return;
+            if (overridesSomething(callable)
+                && overrideRenderingPolicy == OverrideRenderingPolicy.RENDER_OVERRIDE
+                && callable.getModality() == Modality.OPEN) {
+                return;
+            }
             renderModality(callable.getModality(), builder);
         }
     }
@@ -348,10 +356,13 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     private void renderOverrideAndMemberKind(@NotNull CallableMemberDescriptor callableMember, @NotNull StringBuilder builder) {
+        if (!modifiers) return;
         if (overridesSomething(callableMember)) {
-            builder.append("override ");
-            if (verbose) {
-                builder.append("/*").append(callableMember.getOverriddenDescriptors().size()).append("*/ ");
+            if (overrideRenderingPolicy != OverrideRenderingPolicy.RENDER_OPEN) {
+                builder.append("override ");
+                if (verbose) {
+                    builder.append("/*").append(callableMember.getOverriddenDescriptors().size()).append("*/ ");
+                }
             }
         }
         if (verbose && callableMember.getKind() != CallableMemberDescriptor.Kind.DECLARATION) {

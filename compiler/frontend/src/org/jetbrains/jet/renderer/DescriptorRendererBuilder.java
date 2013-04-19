@@ -34,6 +34,8 @@ public class DescriptorRendererBuilder {
     private boolean normalizedVisibilities = false;
     private boolean showInternalKeyword = true;
     @NotNull
+    private DescriptorRenderer.OverrideRenderingPolicy overrideRenderingPolicy = DescriptorRenderer.OverrideRenderingPolicy.RENDER_OPEN;
+    @NotNull
     private DescriptorRenderer.ValueParametersHandler valueParametersHandler = new DescriptorRenderer.DefaultValueParameterHandler();
     @NotNull
     private DescriptorRenderer.TextFormat textFormat = DescriptorRenderer.TextFormat.PLAIN;
@@ -93,6 +95,11 @@ public class DescriptorRendererBuilder {
         return this;
     }
 
+    public DescriptorRendererBuilder setOverrideRenderingPolicy(DescriptorRenderer.OverrideRenderingPolicy overrideRenderingPolicy) {
+        this.overrideRenderingPolicy = overrideRenderingPolicy;
+        return this;
+    }
+
     public DescriptorRendererBuilder setValueParametersHandler(@NotNull DescriptorRenderer.ValueParametersHandler valueParametersHandler) {
         this.valueParametersHandler = valueParametersHandler;
         return this;
@@ -110,8 +117,8 @@ public class DescriptorRendererBuilder {
 
     public DescriptorRenderer build() {
         return new DescriptorRendererImpl(shortNames, withDefinedIn, modifiers, startFromName, debugMode, classWithPrimaryConstructor,
-                                          verbose, unitReturnType, normalizedVisibilities, showInternalKeyword, valueParametersHandler,
-                                          textFormat, excludedAnnotationClasses);
+                                          verbose, unitReturnType, normalizedVisibilities, showInternalKeyword, overrideRenderingPolicy,
+                                          valueParametersHandler, textFormat, excludedAnnotationClasses);
     }
 
 }

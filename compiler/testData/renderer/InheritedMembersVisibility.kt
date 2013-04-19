@@ -22,9 +22,9 @@ class B : A {
 //protected abstract fun f(): jet.Int defined in A
 //internal final class B : A defined in root package
 //public constructor B() defined in B
-//public override var int: jet.Int defined in B
-//public override fun <get-int>(): jet.Int defined in B
-//private override fun <set-int>(<set-?>: jet.Int): jet.Unit defined in B
-//protected override fun f(): jet.Int defined in B
-//internal override val v: jet.Int defined in B
-//internal override fun <get-v>(): jet.Int defined in B
+//public open var int: jet.Int defined in B
+//public open fun <get-int>(): jet.Int defined in B
+//private open fun <set-int>(<set-?>: jet.Int): jet.Unit defined in B
+//protected open fun f(): jet.Int defined in B
+//internal open val v: jet.Int defined in B
+//internal open fun <get-v>(): jet.Int defined in B

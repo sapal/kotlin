@@ -6,5 +6,5 @@ internal trait A {
 
 internal final class B : test.A {
     /*primary*/ public constructor B()
-    internal override /*1*/ /*fake_override*/ fun f(): jet.String
+    internal open override /*1*/ /*fake_override*/ fun f(): jet.String
 }

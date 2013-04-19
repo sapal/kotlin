@@ -5,7 +5,7 @@ public open class RawSuperType : java.lang.Object {
     
     public open inner class Derived : test.RawSuperType.Super<jet.Any?> {
         public constructor Derived()
-        public override /*1*/ fun foo(/*0*/ p0: jet.Any?): jet.Unit
+        public open override /*1*/ fun foo(/*0*/ p0: jet.Any?): jet.Unit
     }
     
     public trait Super</*0*/ T> : java.lang.Object {

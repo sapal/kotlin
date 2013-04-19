@@ -8,7 +8,7 @@ internal trait A {
 
 internal final class B : test.A {
     /*primary*/ public constructor B()
-    internal override /*1*/ /*fake_override*/ var v: jet.String
-        internal override /*1*/ /*fake_override*/ fun <get-v>(): jet.String
-        internal override /*1*/ /*fake_override*/ fun <set-v>(/*0*/ value: jet.String): jet.Unit
+    internal open override /*1*/ /*fake_override*/ var v: jet.String
+        internal open override /*1*/ /*fake_override*/ fun <get-v>(): jet.String
+        internal open override /*1*/ /*fake_override*/ fun <set-v>(/*0*/ value: jet.String): jet.Unit
 }

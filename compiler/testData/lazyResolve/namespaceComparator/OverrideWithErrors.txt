@@ -7,5 +7,5 @@ internal open class A {
 
 internal final class B : test.A {
     /*primary*/ public constructor B()
-    internal override /*1*/ fun foo(/*0*/ a: [ERROR : E]): jet.Unit
+    internal open override /*1*/ fun foo(/*0*/ a: [ERROR : E]): jet.Unit
 }

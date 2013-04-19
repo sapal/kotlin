@@ -8,6 +8,6 @@ internal open class BaseClass {
 
 internal open class Subclass : test.BaseClass {
     /*primary*/ public constructor Subclass()
-    internal override /*1*/ val shape: jet.String
-        internal override /*1*/ fun <get-shape>(): jet.String
+    internal open override /*1*/ val shape: jet.String
+        internal open override /*1*/ fun <get-shape>(): jet.String
 }

@@ -31,6 +31,7 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
             .setWithDefinedIn(false)
             .setShortNames(false)
             .setShowInternalKeyword(false)
+            .setOverrideRenderingPolicy(OverrideRenderingPolicy.RENDER_OVERRIDE)
             .setUnitReturnType(false).build();
 
     DescriptorRenderer SOURCE_CODE_SHORT_NAMES_IN_TYPES = new DescriptorRendererBuilder()
@@ -38,6 +39,7 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
             .setWithDefinedIn(false)
             .setShortNames(true)
             .setShowInternalKeyword(false)
+            .setOverrideRenderingPolicy(OverrideRenderingPolicy.RENDER_OVERRIDE)
             .setUnitReturnType(false).build();
 
     DescriptorRenderer COMPACT = new DescriptorRendererBuilder()
@@ -69,6 +71,10 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
 
     enum TextFormat {
         PLAIN, HTML
+    }
+
+    enum OverrideRenderingPolicy {
+        RENDER_OVERRIDE, RENDER_OPEN, RENDER_OPEN_OVERRIDE
     }
 
     /** @see DefaultValueParameterHandler */

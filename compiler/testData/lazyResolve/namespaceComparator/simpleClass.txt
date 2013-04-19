@@ -22,7 +22,7 @@ package p {
     internal final class G2</*0*/ E> : test.p.G<E> {
         /*primary*/ public constructor G2</*0*/ E>()
         internal final override /*1*/ /*fake_override*/ fun a(): jet.Unit
-        internal override /*1*/ fun f(): E
+        internal open override /*1*/ fun f(): E
         internal final fun g(): E
     }
 }

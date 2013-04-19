@@ -11,9 +11,9 @@ public trait LoadIterableWithPropagation : java.lang.Object {
     
     public open class LoadIterableImpl</*0*/ T> : test.LoadIterableWithPropagation.LoadIterable<T> {
         public constructor LoadIterableImpl</*0*/ T>()
-        public override /*1*/ fun getIterable(): jet.MutableIterable<T>?
-        public override /*1*/ fun getReadOnlyIterable(): jet.Iterable<T>?
-        public override /*1*/ fun setIterable(/*0*/ p0: jet.MutableIterable<T>?): jet.Unit
-        public override /*1*/ fun setReadOnlyIterable(/*0*/ p0: jet.Iterable<T>?): jet.Unit
+        public open override /*1*/ fun getIterable(): jet.MutableIterable<T>?
+        public open override /*1*/ fun getReadOnlyIterable(): jet.Iterable<T>?
+        public open override /*1*/ fun setIterable(/*0*/ p0: jet.MutableIterable<T>?): jet.Unit
+        public open override /*1*/ fun setReadOnlyIterable(/*0*/ p0: jet.Iterable<T>?): jet.Unit
     }
 }
