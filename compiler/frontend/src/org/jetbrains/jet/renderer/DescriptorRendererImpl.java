@@ -401,7 +401,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             builder.append(renderKeyword(variance)).append(" ");
         }
         renderName(typeParameter, builder);
-        if (typeParameter.getUpperBounds().size() >= 1) {
+        int upperBoundsCount = typeParameter.getUpperBounds().size();
+        if ((upperBoundsCount > 1 && !topLevel) || upperBoundsCount == 1) {
             JetType upperBound = typeParameter.getUpperBounds().iterator().next();
             if (!KotlinBuiltIns.getInstance().getDefaultBound().equals(upperBound)) {
                 builder.append(" : ").append(renderType(upperBound));

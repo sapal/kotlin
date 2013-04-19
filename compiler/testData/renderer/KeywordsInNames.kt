@@ -25,6 +25,6 @@ fun <`in` : `trait`> `trait`.`fun`(`false`: `trait`): `trait` where `in` : Numbe
 //public constructor `class`() defined in `class`.`class`
 //internal val `is`: `class`.`class` defined in root package
 //internal val `in`: `class`<`trait`> defined in root package
-//internal fun <`in`> `trait`.`fun`(`false`: `trait`): `trait` where `in` : `trait`, `in` : jet.Number defined in root package
+//internal fun <`in` : `trait`> `trait`.`fun`(`false`: `trait`): `trait` where `in` : jet.Number defined in root package
 //<`in` : `trait` & jet.Number> defined in `fun`
 //value-parameter val `false`: `trait` defined in `fun`

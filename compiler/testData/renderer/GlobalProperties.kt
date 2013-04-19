@@ -24,6 +24,6 @@ get() {}
 //public val jet.Int.ext: jet.Int defined in rendererTest
 //public fun jet.Int.<get-ext>(): jet.Int defined in rendererTest
 //jet.deprecated internal val deprecatedVal: jet.Int defined in rendererTest
-//public val <T> T.extWithTwoUpperBounds: jet.Int where T : jet.CharSequence, T : jet.Number defined in rendererTest
+//public val <T : jet.CharSequence> T.extWithTwoUpperBounds: jet.Int where T : jet.Number defined in rendererTest
 //<T : jet.CharSequence & jet.Number> defined in rendererTest
 //public fun T.<get-extWithTwoUpperBounds>(): jet.Int defined in rendererTest
