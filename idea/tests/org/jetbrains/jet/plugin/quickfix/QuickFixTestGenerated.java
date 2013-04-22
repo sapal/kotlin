@@ -793,6 +793,11 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddFunctionTrait.kt");
             }
             
+            @TestMetadata("beforeAddFunctionTwoSuperclasses.kt")
+            public void testAddFunctionTwoSuperclasses() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddFunctionTwoSuperclasses.kt");
+            }
+            
             @TestMetadata("beforeAddParameter.kt")
             public void testAddParameter() throws Exception {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddParameter.kt");
