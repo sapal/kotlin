@@ -29,11 +29,18 @@ import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetAddFunctionToTypeAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManagerUtil;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
+import org.jetbrains.jet.renderer.DescriptorRenderer;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
@@ -52,12 +59,33 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
         DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
         if (!(containingDeclaration instanceof ClassDescriptor)) return functions;
         ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
-        for (ClassDescriptor supertypeDescriptor : DescriptorUtils.getSuperclassDescriptors(classDescriptor)) {
+        List<ClassDescriptor> superTypes = getSuperTypes(classDescriptor);
+        for (ClassDescriptor supertypeDescriptor : superTypes) {
+            if (KotlinBuiltIns.getInstance().isAny(supertypeDescriptor.getDefaultType())) continue;
             functions.add(new JetAddFunctionToTypeAction.FunctionToAdd(
                     generateFunctionSignatureForType(functionDescriptor, supertypeDescriptor),
                     supertypeDescriptor));
         }
         return functions;
+    }
+
+    private static List<ClassDescriptor> getSuperTypes(ClassDescriptor classDescriptor) {
+        ArrayList<ClassDescriptor> superTypes = Lists.newArrayList(DescriptorUtils.getAllSuperClasses(classDescriptor));
+        Collections.sort(superTypes, new Comparator<ClassDescriptor>() {
+            @Override
+            public int compare(ClassDescriptor o1, ClassDescriptor o2) {
+                JetType type1 = o1.getDefaultType();
+                JetType type2 = o2.getDefaultType();
+                if (JetTypeChecker.INSTANCE.isSubtypeOf(type1, type2)) {
+                    return -1;
+                }
+                if (JetTypeChecker.INSTANCE.isSubtypeOf(type2, type1)) {
+                    return 1;
+                }
+                return DescriptorRenderer.SOURCE_CODE.render(o1).compareTo(DescriptorRenderer.SOURCE_CODE.render(o2));
+            }
+        });
+        return superTypes;
     }
 
     private static FunctionDescriptor generateFunctionSignatureForType(
