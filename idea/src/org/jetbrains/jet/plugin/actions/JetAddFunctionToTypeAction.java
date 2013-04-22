@@ -24,12 +24,14 @@ import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
+import org.jetbrains.jet.lang.descriptors.ClassKind;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetClass;
 import org.jetbrains.jet.lang.psi.JetClassBody;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
@@ -95,8 +97,8 @@ public class JetAddFunctionToTypeAction implements QuestionAction {
 
     private static void addFunction(
             final Project project,
-            ClassDescriptor typeDescriptor,
-            final FunctionDescriptor functionDescriptor,
+            final ClassDescriptor typeDescriptor,
+            @NotNull final FunctionDescriptor functionDescriptor,
             BindingContext bindingContext
     ) {
         final String signatureString = CodeInsightUtils.createFunctionSignatureStringFromDescriptor(
@@ -118,9 +120,13 @@ public class JetAddFunctionToTypeAction implements QuestionAction {
 
                 // TODO: merge with OverrideImplementMethodsHandler?
                 // TODO: abstract, traits
-                String functionBody = "{}";
-                if (!KotlinBuiltIns.getInstance().isUnit(functionDescriptor.getReturnType())) {
-                    functionBody = "{ throw UnsupportedOperationException() }";
+                String functionBody = "";
+                if (typeDescriptor.getKind() != ClassKind.TRAIT) {
+                    functionBody = "{}";
+                    JetType returnType = functionDescriptor.getReturnType();
+                    if (returnType == null || !KotlinBuiltIns.getInstance().isUnit(returnType)) {
+                        functionBody = "{ throw UnsupportedOperationException() }";
+                    }
                 }
                 JetNamedFunction functionElement = JetPsiFactory.createFunction(project, signatureString + functionBody);
                 PsiElement anchor = body.getLBrace();
