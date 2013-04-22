@@ -26,6 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassKind;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.Modality;
 import org.jetbrains.jet.lang.psi.JetClass;
 import org.jetbrains.jet.lang.psi.JetClassBody;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
@@ -118,10 +119,8 @@ public class JetAddFunctionToTypeAction implements QuestionAction {
                     body = (JetClassBody) typeDeclaration.add(JetPsiFactory.createEmptyClassBody(project));
                 }
 
-                // TODO: merge with OverrideImplementMethodsHandler?
-                // TODO: abstract, traits
                 String functionBody = "";
-                if (typeDescriptor.getKind() != ClassKind.TRAIT) {
+                if (typeDescriptor.getKind() != ClassKind.TRAIT && functionDescriptor.getModality() != Modality.ABSTRACT) {
                     functionBody = "{}";
                     JetType returnType = functionDescriptor.getReturnType();
                     if (returnType == null || !KotlinBuiltIns.getInstance().isUnit(returnType)) {

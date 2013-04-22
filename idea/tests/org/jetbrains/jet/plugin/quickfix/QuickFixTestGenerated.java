@@ -778,6 +778,11 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddFunction.kt");
             }
             
+            @TestMetadata("beforeAddFunctionAbstractClass.kt")
+            public void testAddFunctionAbstractClass() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddFunctionAbstractClass.kt");
+            }
+            
             @TestMetadata("beforeAddFunctionNonUnitReturnType.kt")
             public void testAddFunctionNonUnitReturnType() throws Exception {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddFunctionNonUnitReturnType.kt");
