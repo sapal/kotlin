@@ -46,10 +46,10 @@ public class SpecifyTypeExplicitlyFix extends PsiElementBaseIntentionAction {
         JetNamedDeclaration declaration = PsiTreeUtil.getParentOfType(element, JetProperty.class, JetNamedFunction.class);
         JetType type = getTypeForDeclaration(declaration);
         if (declaration instanceof JetProperty) {
-            addTypeAnnotation(project, editor, (JetProperty) declaration, type);
+            addTypeAnnotation(project, editor, null, (JetProperty) declaration, type);
         }
         else if (declaration instanceof JetNamedFunction) {
-            addTypeAnnotation(project, editor, (JetNamedFunction) declaration, type);
+            addTypeAnnotation(project, editor, null, (JetNamedFunction) declaration, type);
         }
         else {
             assert false : "Couldn't find property or function";

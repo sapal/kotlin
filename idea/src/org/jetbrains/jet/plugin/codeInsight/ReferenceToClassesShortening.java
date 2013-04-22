@@ -17,6 +17,7 @@
 package org.jetbrains.jet.plugin.codeInsight;
 
 import com.intellij.psi.PsiDocumentManager;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
@@ -30,17 +31,38 @@ import org.jetbrains.jet.plugin.quickfix.ImportInsertHelper;
 import java.util.List;
 
 public class ReferenceToClassesShortening {
-    private ReferenceToClassesShortening() {
+
+    @NotNull
+    private final BindingContext bindingContext;
+    @NotNull
+    private final JetFile file;
+
+    private ReferenceToClassesShortening(@NotNull JetFile file, @NotNull BindingContext bindingContext) {
+        this.file = file;
+        this.bindingContext = bindingContext;
     }
 
-    public static void compactReferenceToClasses(List<? extends JetElement> elementsToCompact) {
+    @NotNull
+    public static ReferenceToClassesShortening getReferenceToClassesShortenerForFile(@NotNull JetFile file) {
+        return new ReferenceToClassesShortening(
+                file,
+                WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile(file).getBindingContext());
+    }
+
+    public static void compactReferenceToClassesNow(List<? extends JetElement> elementsToCompact) {
+        if (elementsToCompact.isEmpty()) {
+            return;
+        }
+        getReferenceToClassesShortenerForFile((JetFile)elementsToCompact.get(0).getContainingFile())
+                .compactReferenceToClasses(elementsToCompact);
+    }
+
+    public void compactReferenceToClasses(List<? extends JetElement> elementsToCompact) {
         if (elementsToCompact.isEmpty()) {
             return;
         }
         PsiDocumentManager.getInstance(elementsToCompact.get(0).getProject()).commitAllDocuments();
 
-        final JetFile file = (JetFile) elementsToCompact.get(0).getContainingFile();
-        final BindingContext bc = WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile(file).getBindingContext();
         for (JetElement element : elementsToCompact) {
             element.accept(new JetVisitorVoid() {
                 @Override
@@ -58,13 +80,13 @@ public class ReferenceToClassesShortening {
                     }
                     if (typeElement instanceof JetUserType) {
                         JetUserType userType = (JetUserType) typeElement;
-                        DeclarationDescriptor target = bc.get(BindingContext.REFERENCE_TARGET,
-                                                              userType.getReferenceExpression());
+                        DeclarationDescriptor target = bindingContext.get(BindingContext.REFERENCE_TARGET,
+                                                                          userType.getReferenceExpression());
                         if (target instanceof ClassDescriptor) {
                             ClassDescriptor targetClass = (ClassDescriptor) target;
                             ClassDescriptor targetTopLevelClass = ImportInsertHelper.getTopLevelClass(targetClass);
 
-                            JetScope scope = bc.get(BindingContext.TYPE_RESOLUTION_SCOPE, typeReference);
+                            JetScope scope = bindingContext.get(BindingContext.TYPE_RESOLUTION_SCOPE, typeReference);
                             ClassifierDescriptor classifier = scope.getClassifier(targetTopLevelClass.getName());
                             if (targetTopLevelClass == classifier) {
                                 compactReferenceToClass(userType, targetClass);

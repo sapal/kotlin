@@ -87,7 +87,7 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
             elementsToCompact.add((JetElement) added);
         }
 
-        ReferenceToClassesShortening.compactReferenceToClasses(elementsToCompact);
+        ReferenceToClassesShortening.compactReferenceToClassesNow(elementsToCompact);
     }
 
     @Nullable

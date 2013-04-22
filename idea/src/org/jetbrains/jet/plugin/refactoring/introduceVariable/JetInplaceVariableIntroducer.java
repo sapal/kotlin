@@ -122,7 +122,7 @@ public class JetInplaceVariableIntroducer extends InplaceVariableIntroducer<JetE
                                         }
                                     }
                                 }
-                                SpecifyTypeExplicitlyAction.addTypeAnnotation(myProject, myEditor, myProperty, myExprType);
+                                SpecifyTypeExplicitlyAction.addTypeAnnotation(myProject, myEditor, null, myProperty, myExprType);
                                 PsiDocumentManager.getInstance(myProject).commitDocument(myEditor.getDocument());
                                 TemplateState templateState = TemplateManagerImpl.getTemplateState(myEditor);
                                 if (templateState != null) {

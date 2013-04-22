@@ -392,7 +392,7 @@ public class JetIntroduceVariableHandler extends JetIntroduceHandlerBase {
                 }
                 propertyRef.set(property);
                 if (noTypeInference) {
-                    ReferenceToClassesShortening.compactReferenceToClasses(Collections.singletonList(property));
+                    ReferenceToClassesShortening.compactReferenceToClassesNow(Collections.singletonList(property));
                 }
             }
         };

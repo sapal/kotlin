@@ -70,7 +70,7 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
         if (parent instanceof JetProperty) {
             JetProperty property = (JetProperty) parent;
             if (property.getTypeRef() == null) {
-                addTypeAnnotation(project, editor, property, type);
+                addTypeAnnotation(project, editor, null, property, type);
             }
             else {
                 removeTypeAnnotation(property);
@@ -79,7 +79,7 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
         else if (parent instanceof JetParameter) {
             JetParameter parameter = (JetParameter) parent;
             if (parameter.getTypeReference() == null) {
-                addTypeAnnotation(project, editor, parameter, type);
+                addTypeAnnotation(project, editor, null, parameter, type);
             }
             else {
                 removeTypeAnnotation(parameter);
@@ -88,7 +88,7 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
         else if (parent instanceof JetNamedFunction) {
             JetNamedFunction function = (JetNamedFunction) parent;
             assert function.getReturnTypeRef() == null;
-            addTypeAnnotation(project, editor, function, type);
+            addTypeAnnotation(project, editor, null, function, type);
         }
         else {
             throw new IllegalStateException("Unexpected parent: " + parent);
@@ -172,6 +172,7 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
     public static void addTypeAnnotation(
             @NotNull Project project,
             @NotNull Editor editor,
+            @NotNull ReferenceToClassesShortening referenceShortener,
             @NotNull JetProperty property,
             @NotNull JetType exprType
     ) {
@@ -184,22 +185,35 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
             return;
         }
 
-        addTypeAnnotation(project, editor, property, anchor, exprType);
+        addTypeAnnotation(project, editor, referenceShortener, property, anchor, exprType);
     }
 
-    public static void addTypeAnnotation(Project project, Editor editor, JetFunction function, @NotNull JetType exprType) {
+    public static void addTypeAnnotation(
+            Project project,
+            Editor editor,
+            @NotNull ReferenceToClassesShortening referenceShortener,
+            JetFunction function,
+            @NotNull JetType exprType
+    ) {
         JetParameterList valueParameterList = function.getValueParameterList();
         assert valueParameterList != null;
-        addTypeAnnotation(project, editor, function, valueParameterList, exprType);
+        addTypeAnnotation(project, editor, referenceShortener, function, valueParameterList, exprType);
     }
 
-    public static void addTypeAnnotation(Project project, Editor editor, JetParameter parameter, @NotNull JetType exprType) {
-        addTypeAnnotation(project, editor, parameter, parameter.getNameIdentifier(), exprType);
+    public static void addTypeAnnotation(
+            Project project,
+            Editor editor,
+            @NotNull ReferenceToClassesShortening referenceShortener,
+            JetParameter parameter,
+            @NotNull JetType exprType
+    ) {
+        addTypeAnnotation(project, editor, referenceShortener, parameter, parameter.getNameIdentifier(), exprType);
     }
 
     private static void addTypeAnnotation(
             @NotNull Project project,
             @NotNull Editor editor,
+            @NotNull final ReferenceToClassesShortening referenceShortener,
             @NotNull final JetNamedDeclaration namedDeclaration,
             @NotNull PsiElement anchor,
             @NotNull JetType exprType
@@ -245,7 +259,7 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
         manager.startTemplate(editor, builder.buildInlineTemplate(), new TemplateEditingAdapter() {
             @Override
             public void templateFinished(Template template, boolean brokenOff) {
-                ReferenceToClassesShortening.compactReferenceToClasses(Collections.singletonList(namedDeclaration));
+                referenceShortener.compactReferenceToClasses(Collections.singletonList(namedDeclaration));
             }
         });
     }

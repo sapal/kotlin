@@ -29,6 +29,7 @@ import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.plugin.JetBundle;
@@ -126,6 +127,8 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
 
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
+        final ReferenceToClassesShortening referenceShortener = ReferenceToClassesShortening
+                .getReferenceToClassesShortenerForFile((JetFile) element.getContainingFile());
         CommandProcessor.getInstance().executeCommand(project, new Runnable() {
             @Override
             public void run() {
@@ -150,7 +153,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
                             newElement = JetPsiFactory.createFunction(project, signatureString);
                         }
                         newElement = (JetNamedFunction) element.replace(newElement);
-                        ReferenceToClassesShortening.compactReferenceToClasses(Collections.singletonList(newElement));
+                        referenceShortener.compactReferenceToClasses(Collections.singletonList(newElement));
                     }
                 });
             }

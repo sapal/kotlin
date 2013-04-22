@@ -88,7 +88,7 @@ public class MoveDeclarationsOutHelper {
             dummyFirstStatement.delete();
         }
 
-        ReferenceToClassesShortening.compactReferenceToClasses(propertiesDeclarations);
+        ReferenceToClassesShortening.compactReferenceToClassesNow(propertiesDeclarations);
 
         return PsiUtilCore.toPsiElementArray(resultStatements);
     }

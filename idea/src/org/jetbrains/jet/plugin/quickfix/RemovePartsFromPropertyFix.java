@@ -117,7 +117,7 @@ public class RemovePartsFromPropertyFix extends JetIntentionAction<JetProperty> 
         }
         element = (JetProperty) element.replace(newElement);
         if (typeToAdd != null) {
-            SpecifyTypeExplicitlyAction.addTypeAnnotation(project, editor, element, typeToAdd);
+            SpecifyTypeExplicitlyAction.addTypeAnnotation(project, editor, null, element, typeToAdd);
         }
     }
 
