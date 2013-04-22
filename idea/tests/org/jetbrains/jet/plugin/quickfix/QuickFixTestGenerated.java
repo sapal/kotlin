@@ -770,6 +770,11 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
         
         @TestMetadata("idea/testData/quickfix/override/nothingToOverride")
         public static class NothingToOverride extends AbstractQuickFixTest {
+            @TestMetadata("beforeAddFunction.kt")
+            public void testAddFunction() throws Exception {
+                doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddFunction.kt");
+            }
+            
             @TestMetadata("beforeAddParameter.kt")
             public void testAddParameter() throws Exception {
                 doTest("idea/testData/quickfix/override/nothingToOverride/beforeAddParameter.kt");
