@@ -22,7 +22,6 @@ import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
-import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -31,43 +30,46 @@ import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.actions.JetAddFunctionToClassAction;
+import org.jetbrains.jet.plugin.actions.JetAddFunctionToTypeAction;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManagerUtil;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 
 import java.util.List;
 
 public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
-    private final List<JetAddFunctionToClassAction.FunctionToAdd> functionsToAdd;
+    private final List<JetAddFunctionToTypeAction.FunctionToAdd> functionsToAdd;
 
     public AddFunctionToSupertypeFix(JetNamedFunction element) {
         super(element);
         functionsToAdd = generateFunctionsToAdd(element);
     }
 
-    private static List<JetAddFunctionToClassAction.FunctionToAdd> generateFunctionsToAdd(JetNamedFunction functionElement) {
+    private static List<JetAddFunctionToTypeAction.FunctionToAdd> generateFunctionsToAdd(JetNamedFunction functionElement) {
         BindingContext context = KotlinCacheManagerUtil.getDeclarationsFromProject(functionElement).getBindingContext();
         FunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
-        List<JetAddFunctionToClassAction.FunctionToAdd> functions = Lists.newArrayList();
+        List<JetAddFunctionToTypeAction.FunctionToAdd> functions = Lists.newArrayList();
         if (functionDescriptor == null) return functions;
         DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
         if (!(containingDeclaration instanceof ClassDescriptor)) return functions;
         ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
-        for (ClassDescriptor superclassDescriptor : DescriptorUtils.getSuperclassDescriptors(classDescriptor)) {
-            functions.add(new JetAddFunctionToClassAction.FunctionToAdd(
-                    generateFunctionSignatureForClass(functionDescriptor, superclassDescriptor),
-                    superclassDescriptor));
+        for (ClassDescriptor supertypeDescriptor : DescriptorUtils.getSuperclassDescriptors(classDescriptor)) {
+            functions.add(new JetAddFunctionToTypeAction.FunctionToAdd(
+                    generateFunctionSignatureForType(functionDescriptor, supertypeDescriptor),
+                    supertypeDescriptor));
         }
         return functions;
     }
 
-    private static FunctionDescriptor generateFunctionSignatureForClass(FunctionDescriptor functionDescriptor, ClassDescriptor classDescriptor) {
+    private static FunctionDescriptor generateFunctionSignatureForType(
+            FunctionDescriptor functionDescriptor,
+            ClassDescriptor typeDescriptor
+    ) {
         return functionDescriptor.copy(
-                classDescriptor,
+                typeDescriptor,
                 Modality.OPEN,
                 functionDescriptor.getVisibility(),
                 CallableMemberDescriptor.Kind.DECLARATION,
-                /* copyOverrides = */ false); // TODO
+                /* copyOverrides = */ false); // TODO?
     }
 
     public static JetIntentionActionFactory createFactory() {
@@ -94,11 +96,16 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
     @NotNull
     @Override
     public String getText() {
-        ClassDescriptor supertype = functionsToAdd.get(0).getClassDescriptor();
-        FunctionDescriptor newFunction = functionsToAdd.get(0).getFunctionDescriptor();
-        return JetBundle.message("add.function.to.supertype.action",
-                                 CodeInsightUtils.createFunctionSignatureStringFromDescriptor(newFunction, /* shortTypeNames */ true),
-                                 supertype.getName().toString());
+        if (functionsToAdd.size() == 1) {
+            ClassDescriptor supertype = functionsToAdd.get(0).getTypeDescriptor();
+            FunctionDescriptor newFunction = functionsToAdd.get(0).getFunctionDescriptor();
+            return JetBundle.message("add.function.to.supertype.action.single",
+                                     CodeInsightUtils.createFunctionSignatureStringFromDescriptor(newFunction, /* shortTypeNames */ true),
+                                     supertype.getName().toString());
+        }
+        else {
+            return JetBundle.message("add.function.to.supertype.action.multiple");
+        }
     }
 
     @NotNull
@@ -108,10 +115,7 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
     }
 
     @Override
-    public void invoke(
-            @NotNull final Project project, final Editor editor, PsiFile file
-    ) throws IncorrectOperationException {
-
+    public void invoke(@NotNull final Project project, final Editor editor, PsiFile file) {
         CommandProcessor.getInstance().runUndoTransparentAction(new Runnable() {
             @Override
             public void run() {
@@ -121,8 +125,8 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
     }
 
     @NotNull
-    private JetAddFunctionToClassAction createAction(Project project, Editor editor) {
+    private JetAddFunctionToTypeAction createAction(Project project, Editor editor) {
         BindingContext bindingContext = KotlinCacheManagerUtil.getDeclarationsFromProject(element).getBindingContext();
-        return new JetAddFunctionToClassAction(project, editor, bindingContext, functionsToAdd);
+        return new JetAddFunctionToTypeAction(project, editor, bindingContext, functionsToAdd);
     }
 }
