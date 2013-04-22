@@ -30,6 +30,7 @@ import org.jetbrains.jet.lang.psi.JetClassBody;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
@@ -39,35 +40,36 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class JetAddFunctionToClassAction implements QuestionAction {
+public class JetAddFunctionToTypeAction implements QuestionAction {
     private final List<FunctionToAdd> functionsToAdd;
     private final Project project;
     private final Editor editor;
     private final BindingContext bindingContext;
 
     public static class FunctionToAdd {
-        private final ClassDescriptor classDescriptor;
+        private final ClassDescriptor typeDescriptor;
         private final FunctionDescriptor functionDescriptor;
 
-        public ClassDescriptor getClassDescriptor() {
-            return classDescriptor;
+        public ClassDescriptor getTypeDescriptor() {
+            return typeDescriptor;
         }
 
         public FunctionDescriptor getFunctionDescriptor() {
             return functionDescriptor;
         }
 
-        public FunctionToAdd(FunctionDescriptor functionDescriptor, ClassDescriptor classDescriptor) {
+        public FunctionToAdd(FunctionDescriptor functionDescriptor, ClassDescriptor typeDescriptor) {
             this.functionDescriptor = functionDescriptor;
-            this.classDescriptor = classDescriptor;
+            this.typeDescriptor = typeDescriptor;
         }
     }
 
-    public JetAddFunctionToClassAction(
+    public JetAddFunctionToTypeAction(
             @NotNull Project project,
             @NotNull Editor editor,
             @NotNull BindingContext bindingContext,
-            @NotNull List<FunctionToAdd> functionsToAdd) {
+            @NotNull List<FunctionToAdd> functionsToAdd
+    ) {
         this.project = project;
         this.editor = editor;
         this.bindingContext = bindingContext;
@@ -82,7 +84,7 @@ public class JetAddFunctionToClassAction implements QuestionAction {
 
         if (functionsToAdd.size() == 1 || !editor.getComponent().isShowing()) {
             FunctionToAdd function = functionsToAdd.get(0);
-            addFunction(project, function.getClassDescriptor(), function.getFunctionDescriptor(), bindingContext);
+            addFunction(project, function.getTypeDescriptor(), function.getFunctionDescriptor(), bindingContext);
         }
         else {
             // TODO
@@ -93,8 +95,8 @@ public class JetAddFunctionToClassAction implements QuestionAction {
 
     private static void addFunction(
             final Project project,
-            ClassDescriptor classDescriptor,
-            FunctionDescriptor functionDescriptor,
+            ClassDescriptor typeDescriptor,
+            final FunctionDescriptor functionDescriptor,
             BindingContext bindingContext
     ) {
         final String signatureString = CodeInsightUtils.createFunctionSignatureStringFromDescriptor(
@@ -103,25 +105,30 @@ public class JetAddFunctionToClassAction implements QuestionAction {
 
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
-        final JetClass classDeclaration = (JetClass) DescriptorToDeclarationUtil.getDeclaration(project, classDescriptor, bindingContext);
+        final JetClass typeDeclaration = (JetClass) DescriptorToDeclarationUtil.getDeclaration(project, typeDescriptor, bindingContext);
         CommandProcessor.getInstance().executeCommand(project, new Runnable() {
             @Override
             public void run() {
 
-                JetClassBody body = classDeclaration.getBody();
+                JetClassBody body = typeDeclaration.getBody();
                 if (body == null) {
-                    classDeclaration.add(JetPsiFactory.createWhiteSpace(project));
-                    body = (JetClassBody) classDeclaration.add(JetPsiFactory.createEmptyClassBody(project));
+                    typeDeclaration.add(JetPsiFactory.createWhiteSpace(project));
+                    body = (JetClassBody) typeDeclaration.add(JetPsiFactory.createEmptyClassBody(project));
                 }
 
-                // TODO: merge with OverrideImplementMethodsHandler
+                // TODO: merge with OverrideImplementMethodsHandler?
+                // TODO: abstract, traits
+                String functionBody = "{}";
+                if (!KotlinBuiltIns.getInstance().isUnit(functionDescriptor.getReturnType())) {
+                    functionBody = "{ throw UnsupportedOperationException() }";
+                }
+                JetNamedFunction functionElement = JetPsiFactory.createFunction(project, signatureString + functionBody);
                 PsiElement anchor = body.getLBrace();
-                JetNamedFunction functionElement = JetPsiFactory.createFunction(project, signatureString + "{}");
-                body.addAfter(functionElement, anchor);
+                JetNamedFunction insertedFunctionElement = (JetNamedFunction) body.addAfter(functionElement, anchor);
 
-                ReferenceToClassesShortening.compactReferenceToClasses(Collections.singletonList(functionElement));
+                ReferenceToClassesShortening.compactReferenceToClasses(Collections.singletonList(insertedFunctionElement));
          }
-        }, JetBundle.message("add.function.to.class.action"), null);
+        }, JetBundle.message("add.function.to.type.action"), null);
     }
 
 
