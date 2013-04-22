@@ -136,6 +136,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
 
         matchParameters(MATCH_NAMES, superParameters, parameters, newParameters, matched, used);
         matchParameters(MATCH_TYPES, superParameters, parameters, newParameters, matched, used);
+        matchParameters(MATCH_SUPERTYPES, superParameters, parameters, newParameters, matched, used);
 
         FunctionDescriptor newFunction = FunctionDescriptorUtil.replaceFunctionParameters(
                 superFunction.copy(
@@ -180,16 +181,37 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         }
     };
 
-    private static final ParameterChooser MATCH_TYPES = new ParameterChooser() {
-        @Nullable
-        @Override
-        public ValueParameterDescriptor choose(
-                @NotNull ValueParameterDescriptor parameter,
-                @NotNull ValueParameterDescriptor superParameter
-        ) {
-            return JetTypeChecker.INSTANCE.equalTypes(parameter.getType(), superParameter.getType()) ? parameter : null;
-        }
-    };
+    private static final ParameterChooser MATCH_TYPES = createMatchTypesChooser(true);
+
+    private static final ParameterChooser MATCH_SUPERTYPES = createMatchTypesChooser(false);
+
+    private static ParameterChooser createMatchTypesChooser(final boolean equal) {
+        return new ParameterChooser() {
+            @Nullable
+            @Override
+            public ValueParameterDescriptor choose(
+                    @NotNull ValueParameterDescriptor parameter,
+                    @NotNull ValueParameterDescriptor superParameter
+            ) {
+
+                boolean compatibleTypes;
+                JetType superUpperBound = OverridingUtil.getUpperBound(superParameter.getType());
+                JetType upperBound = OverridingUtil.getUpperBound(parameter.getType());
+                if (equal) {
+                    compatibleTypes = JetTypeChecker.INSTANCE.equalTypes(upperBound, superUpperBound);
+                }
+                else {
+                    compatibleTypes = JetTypeChecker.INSTANCE.isSubtypeOf(superUpperBound, upperBound);
+                }
+                if (compatibleTypes) {
+                    return superParameter.copy(parameter.getName());
+                }
+                else {
+                    return null;
+                }
+            }
+        };
+    }
 
     /**
      * Match function's parameters with super function's parameters using parameterChooser.
