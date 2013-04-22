@@ -64,12 +64,16 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
             FunctionDescriptor functionDescriptor,
             ClassDescriptor typeDescriptor
     ) {
+        Modality modality = typeDescriptor.getModality();
+        if (typeDescriptor.getKind() == ClassKind.TRAIT) {
+            modality = Modality.OPEN;
+        }
         return functionDescriptor.copy(
                 typeDescriptor,
-                Modality.OPEN,
+                modality,
                 functionDescriptor.getVisibility(),
                 CallableMemberDescriptor.Kind.DECLARATION,
-                /* copyOverrides = */ false); // TODO?
+                /* copyOverrides = */ false);
     }
 
     public static JetIntentionActionFactory createFactory() {
