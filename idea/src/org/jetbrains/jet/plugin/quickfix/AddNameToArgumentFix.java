@@ -19,9 +19,17 @@ package org.jetbrains.jet.plugin.quickfix;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.intellij.codeInsight.intention.IntentionAction;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.popup.JBPopupFactory;
+import com.intellij.openapi.ui.popup.ListPopupStep;
+import com.intellij.openapi.ui.popup.PopupStep;
+import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
+import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
@@ -35,6 +43,7 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
 
+import javax.swing.*;
 import java.util.List;
 import java.util.Set;
 
@@ -93,25 +102,79 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
 
     @Override
     protected void invoke(@NotNull Project project, Editor editor, JetFile file) {
-        addName(project, element, possibleNames.get(0));
+        if (possibleNames.size() == 1 || editor == null || !editor.getComponent().isShowing()) {
+            addName(project, element, possibleNames.get(0));
+        }
+        else {
+            chooseNameAndAdd(project, editor);
+        }
     }
 
-    private static void addName(@NotNull Project project, JetValueArgument argument, String name) {
-        JetValueArgument newArgument =
-                JetPsiFactory.createCallArguments(project, "(" + name + "=" + getArgumentExpression(argument).getText()+")")
-                        .getArguments().get(0);
-        argument.replace(newArgument);
+    private void chooseNameAndAdd(@NotNull Project project, Editor editor) {
+        JBPopupFactory.getInstance().createListPopup(getNamePopup(project)).showInBestPositionFor(editor);
+    }
+
+    private ListPopupStep getNamePopup(final @NotNull Project project) {
+        return new BaseListPopupStep<String>(
+                JetBundle.message("change.function.signature.chooser.title"), possibleNames) {
+            @Override
+            public boolean isAutoSelectionEnabled() {
+                return false;
+            }
+
+            @Override
+            public PopupStep onChosen(String selectedName, boolean finalChoice) {
+                if (finalChoice) {
+                    addName(project, element, selectedName);
+                }
+                return FINAL_CHOICE;
+            }
+
+            @Override
+            public Icon getIconFor(String name) {
+                return PlatformIcons.PARAMETER_ICON;
+            }
+
+            @NotNull
+            @Override
+            public String getTextFor(String name) {
+                return getTextForName(name);
+            }
+        };
+    }
+
+    private static void addName(final @NotNull Project project, final @NotNull JetValueArgument argument, final @NotNull String name) {
+        PsiDocumentManager.getInstance(project).commitAllDocuments();
+
+        CommandProcessor.getInstance().executeCommand(project, new Runnable() {
+            @Override
+            public void run() {
+                ApplicationManager.getApplication().runWriteAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        JetValueArgument newArgument =
+                                JetPsiFactory.createCallArguments(project, "(" + name + "=" + getArgumentExpression(argument).getText()+")")
+                                        .getArguments().get(0);
+                        argument.replace(newArgument);
+                    }
+                });
+            }
+        }, JetBundle.message("add.name.to.argument.action"), null);
     }
 
     @NotNull
     @Override
     public String getText() {
         if (possibleNames.size() == 1) {
-            JetExpression argumentExpression = getArgumentExpression(element);
-            return JetBundle.message("add.name.to.argument.single", possibleNames.get(0), argumentExpression.getText());
+            return getTextForName(possibleNames.get(0));
         } else {
             return JetBundle.message("add.name.to.argument.multiple");
         }
+    }
+
+    private String getTextForName(String name) {
+        JetExpression argumentExpression = getArgumentExpression(element);
+        return JetBundle.message("add.name.to.argument.single", name, argumentExpression.getText());
     }
 
     @NotNull
