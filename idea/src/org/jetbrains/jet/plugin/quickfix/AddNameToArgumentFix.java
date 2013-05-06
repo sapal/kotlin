@@ -61,7 +61,7 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
         if (resolvedCall == null) return names;
         CallableDescriptor callableDescriptor = resolvedCall.getResultingDescriptor();
         JetType type = context.get(BindingContext.EXPRESSION_TYPE, argument.getArgumentExpression());
-        Set<String> namedArguments = getNamedArguments(callElement);
+        Set<String> namedArguments = getUsedParameters(callElement, callableDescriptor);
         for (ValueParameterDescriptor parameter: callableDescriptor.getValueParameters()) {
             String name = parameter.getName().getName();
             if (namedArguments.contains(name)) continue;
@@ -71,16 +71,24 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
     }
 
     @NotNull
-    private static Set<String> getNamedArguments(@NotNull JetCallElement callElement) {
-        Set<String> namedArguments = Sets.newHashSet();
+    private static Set<String> getUsedParameters(@NotNull JetCallElement callElement, CallableDescriptor callableDescriptor) {
+        Set<String> usedParameters = Sets.newHashSet();
+        boolean beforeNamed = true;
+        int idx = 0;
         for (ValueArgument argument : callElement.getValueArguments()) {
             if (argument.isNamed()) {
                 JetValueArgumentName name = argument.getArgumentName();
                 assert name != null : "Named argument's name cannot be null";
-                namedArguments.add(name.getText());
+                usedParameters.add(name.getText());
+                beforeNamed = false;
+            }
+            else if (beforeNamed) {
+                ValueParameterDescriptor parameter = callableDescriptor.getValueParameters().get(idx);
+                usedParameters.add(parameter.getName().getName());
+                idx++;
             }
         }
-        return namedArguments;
+        return usedParameters;
     }
 
     @Override
