@@ -61,7 +61,7 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
     private static List<String> generatePossibleNames(@NotNull JetValueArgument argument) {
         List<String> names = Lists.newArrayList();
         JetCallElement callElement = PsiTreeUtil.getParentOfType(argument, JetCallElement.class);
-        assert callElement != null : "The argument has to be inside a function call";
+        assert callElement != null : "The argument has to be inside a function or constructor call";
         BindingContext context = WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile((JetFile) argument.getContainingFile()).getBindingContext();
         JetExpression callee = callElement.getCalleeExpression();
         if (!(callee instanceof JetReferenceExpression)) return names;
@@ -70,17 +70,17 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
         if (resolvedCall == null) return names;
         CallableDescriptor callableDescriptor = resolvedCall.getResultingDescriptor();
         JetType type = context.get(BindingContext.EXPRESSION_TYPE, argument.getArgumentExpression());
-        Set<String> namedArguments = getUsedParameters(callElement, callableDescriptor);
+        Set<String> usedParameters = getUsedParameters(callElement, callableDescriptor);
         for (ValueParameterDescriptor parameter: callableDescriptor.getValueParameters()) {
             String name = parameter.getName().getName();
-            if (namedArguments.contains(name)) continue;
+            if (usedParameters.contains(name)) continue;
             if (type == null || JetTypeChecker.INSTANCE.isSubtypeOf(type, parameter.getType())) names.add(name);
         }
         return names;
     }
 
     @NotNull
-    private static Set<String> getUsedParameters(@NotNull JetCallElement callElement, CallableDescriptor callableDescriptor) {
+    private static Set<String> getUsedParameters(@NotNull JetCallElement callElement, @NotNull CallableDescriptor callableDescriptor) {
         Set<String> usedParameters = Sets.newHashSet();
         boolean beforeNamed = true;
         int idx = 0;
@@ -116,12 +116,7 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
 
     private ListPopupStep getNamePopup(final @NotNull Project project) {
         return new BaseListPopupStep<String>(
-                JetBundle.message("change.function.signature.chooser.title"), possibleNames) {
-            @Override
-            public boolean isAutoSelectionEnabled() {
-                return false;
-            }
-
+                JetBundle.message("add.name.to.parameter.name.chooser.title"), possibleNames) {
             @Override
             public PopupStep onChosen(String selectedName, boolean finalChoice) {
                 if (finalChoice) {
@@ -138,12 +133,12 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
             @NotNull
             @Override
             public String getTextFor(String name) {
-                return getTextForName(name);
+                return getArgumentWithName(name, element).getText();
             }
         };
     }
 
-    private static void addName(final @NotNull Project project, final @NotNull JetValueArgument argument, final @NotNull String name) {
+    private static void addName(@NotNull Project project, final @NotNull JetValueArgument argument, final @NotNull String name) {
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
         CommandProcessor.getInstance().executeCommand(project, new Runnable() {
@@ -152,9 +147,7 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
                 ApplicationManager.getApplication().runWriteAction(new Runnable() {
                     @Override
                     public void run() {
-                        JetValueArgument newArgument =
-                                JetPsiFactory.createCallArguments(project, "(" + name + "=" + getArgumentExpression(argument).getText()+")")
-                                        .getArguments().get(0);
+                        JetValueArgument newArgument = getArgumentWithName(name, argument);
                         argument.replace(newArgument);
                     }
                 });
@@ -162,19 +155,20 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
         }, JetBundle.message("add.name.to.argument.action"), null);
     }
 
+    private static JetValueArgument getArgumentWithName(String name, JetValueArgument argument) {
+        Project project = argument.getProject();
+        return JetPsiFactory.createCallArguments(project, "(" + name + " = " + getArgumentExpression(argument).getText() + ")")
+                .getArguments().get(0);
+    }
+
     @NotNull
     @Override
     public String getText() {
         if (possibleNames.size() == 1) {
-            return getTextForName(possibleNames.get(0));
+            return JetBundle.message("add.name.to.argument.single", getArgumentWithName(possibleNames.get(0), element).getText());
         } else {
             return JetBundle.message("add.name.to.argument.multiple");
         }
-    }
-
-    private String getTextForName(String name) {
-        JetExpression argumentExpression = getArgumentExpression(element);
-        return JetBundle.message("add.name.to.argument.single", name, argumentExpression.getText());
     }
 
     @NotNull
