@@ -427,6 +427,11 @@ public class QuickFixTestGenerated extends AbstractQuickFixTest {
             doTest("idea/testData/quickfix/checkArguments/beforeMixedNamedAndPositionalArguments.kt");
         }
         
+        @TestMetadata("beforeMixedNamedAndPositionalArgumentsSubtype.kt")
+        public void testMixedNamedAndPositionalArgumentsSubtype() throws Exception {
+            doTest("idea/testData/quickfix/checkArguments/beforeMixedNamedAndPositionalArgumentsSubtype.kt");
+        }
+        
         @TestMetadata("beforeMixedNamedAndPositionalArgumentsUsedNamed.kt")
         public void testMixedNamedAndPositionalArgumentsUsedNamed() throws Exception {
             doTest("idea/testData/quickfix/checkArguments/beforeMixedNamedAndPositionalArgumentsUsedNamed.kt");

@@ -31,7 +31,7 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lang.types.TypeUtils;
+import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
 
@@ -65,7 +65,7 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
         for (ValueParameterDescriptor parameter: callableDescriptor.getValueParameters()) {
             String name = parameter.getName().getName();
             if (namedArguments.contains(name)) continue;
-            if (type == null || TypeUtils.equalTypes(parameter.getType(), type)) names.add(name);
+            if (type == null || JetTypeChecker.INSTANCE.isSubtypeOf(type, parameter.getType())) names.add(name);
         }
         return names;
     }
