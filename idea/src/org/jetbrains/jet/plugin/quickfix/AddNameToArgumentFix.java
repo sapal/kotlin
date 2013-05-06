@@ -50,21 +50,37 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
 
     @NotNull
     private static List<String> generatePossibleNames(@NotNull JetValueArgument argument) {
-        Set<String> names = Sets.newHashSet();
+        List<String> names = Lists.newArrayList();
         JetCallElement callElement = PsiTreeUtil.getParentOfType(argument, JetCallElement.class);
         assert callElement != null : "The argument has to be inside a function call";
         BindingContext context = WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile((JetFile) argument.getContainingFile()).getBindingContext();
         JetExpression callee = callElement.getCalleeExpression();
-        if (!(callee instanceof JetReferenceExpression)) return Lists.newArrayList();
+        if (!(callee instanceof JetReferenceExpression)) return names;
         ResolvedCall<? extends CallableDescriptor> resolvedCall =
                 context.get(BindingContext.RESOLVED_CALL, (JetReferenceExpression) callee);
-        if (resolvedCall == null) return Lists.newArrayList();
+        if (resolvedCall == null) return names;
         CallableDescriptor callableDescriptor = resolvedCall.getResultingDescriptor();
         JetType type = context.get(BindingContext.EXPRESSION_TYPE, argument.getArgumentExpression());
+        Set<String> namedArguments = getNamedArguments(callElement);
         for (ValueParameterDescriptor parameter: callableDescriptor.getValueParameters()) {
-            if (type == null || TypeUtils.equalTypes(parameter.getType(), type)) names.add(parameter.getName().getName());
+            String name = parameter.getName().getName();
+            if (namedArguments.contains(name)) continue;
+            if (type == null || TypeUtils.equalTypes(parameter.getType(), type)) names.add(name);
         }
-        return Lists.newArrayList(names);
+        return names;
+    }
+
+    @NotNull
+    private static Set<String> getNamedArguments(@NotNull JetCallElement callElement) {
+        Set<String> namedArguments = Sets.newHashSet();
+        for (ValueArgument argument : callElement.getValueArguments()) {
+            if (argument.isNamed()) {
+                JetValueArgumentName name = argument.getArgumentName();
+                assert name != null : "Named argument's name cannot be null";
+                namedArguments.add(name.getText());
+            }
+        }
+        return namedArguments;
     }
 
     @Override
@@ -74,7 +90,8 @@ public class AddNameToArgumentFix extends JetIntentionAction<JetValueArgument> {
 
     private static void addName(@NotNull Project project, JetValueArgument argument, String name) {
         JetValueArgument newArgument =
-                JetPsiFactory.createCallArguments(project, "(" + name + "=" + getArgumentExpression(argument).getText()+")").getArguments().get(0);
+                JetPsiFactory.createCallArguments(project, "(" + name + "=" + getArgumentExpression(argument).getText()+")")
+                        .getArguments().get(0);
         argument.replace(newArgument);
     }
 
