@@ -27,6 +27,7 @@ import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetProperty;
 import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 
 import static org.jetbrains.jet.plugin.intentions.SpecifyTypeExplicitlyAction.addTypeAnnotation;
@@ -34,6 +35,16 @@ import static org.jetbrains.jet.plugin.intentions.SpecifyTypeExplicitlyAction.ge
 
 @SuppressWarnings("IntentionDescriptionNotFoundInspection")
 public class SpecifyTypeExplicitlyFix extends PsiElementBaseIntentionAction {
+    private final boolean useAnyOnError;
+
+    public SpecifyTypeExplicitlyFix(boolean useAnyOnError) {
+        this.useAnyOnError = useAnyOnError;
+    }
+
+    public SpecifyTypeExplicitlyFix() {
+        this.useAnyOnError = false;
+    }
+
     @NotNull
     @Override
     public String getFamilyName() {
@@ -45,6 +56,9 @@ public class SpecifyTypeExplicitlyFix extends PsiElementBaseIntentionAction {
         //noinspection unchecked
         JetNamedDeclaration declaration = PsiTreeUtil.getParentOfType(element, JetProperty.class, JetNamedFunction.class);
         JetType type = getTypeForDeclaration(declaration);
+        if (ErrorUtils.isErrorType(getTypeForDeclaration(declaration)) && useAnyOnError) {
+            type = KotlinBuiltIns.getInstance().getAnyType();
+        }
         if (declaration instanceof JetProperty) {
             addTypeAnnotation(project, editor, (JetProperty) declaration, type);
         }
@@ -70,6 +84,6 @@ public class SpecifyTypeExplicitlyFix extends PsiElementBaseIntentionAction {
             assert false : "Couldn't find property or function";
         }
 
-        return !ErrorUtils.isErrorType(getTypeForDeclaration(declaration));
+        return useAnyOnError || !ErrorUtils.isErrorType(getTypeForDeclaration(declaration));
     }
 }

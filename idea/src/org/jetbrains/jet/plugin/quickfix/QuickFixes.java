@@ -175,6 +175,7 @@ public class QuickFixes {
 
         actions.put(PUBLIC_MEMBER_SHOULD_SPECIFY_TYPE, new SpecifyTypeExplicitlyFix());
         actions.put(AMBIGUOUS_ANONYMOUS_TYPE_INFERRED, new SpecifyTypeExplicitlyFix());
+        actions.put(TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM, new SpecifyTypeExplicitlyFix(/* useAnyOnError = */ true));
 
         factories.put(ELSE_MISPLACED_IN_WHEN, MoveWhenElseBranchFix.createFactory());
         factories.put(NO_ELSE_IN_WHEN, AddWhenElseBranchFix.createFactory());
