@@ -57,6 +57,7 @@ import org.jetbrains.jet.lang.psi.JetTypeCodeFragment;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.plugin.JetFileType;
 import org.jetbrains.jet.plugin.refactoring.JetRefactoringBundle;
+import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -415,5 +416,13 @@ public class JetChangeSignatureDialog extends ChangeSignatureDialogBase<
         String returnTypeText = myReturnTypeCodeFragment != null ? myReturnTypeCodeFragment.getText().trim() : "";
         return new JetChangeInfo(myMethod, getMethodName(), getReturnType(), returnTypeText,
                                  getVisibility(), parameters, myDefaultValueContext, generatedInfo);
+    }
+
+    public void setReturnType(JetType type) {
+        myReturnTypeField.setText(DescriptorRenderer.SOURCE_CODE.renderType(type));
+    }
+
+    public void setVisibility(Visibility visibility) {
+        myVisibilityPanel.setVisibility(visibility);
     }
 }

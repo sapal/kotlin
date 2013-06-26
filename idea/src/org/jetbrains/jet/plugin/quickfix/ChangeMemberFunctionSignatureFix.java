@@ -51,7 +51,7 @@ import java.util.*;
  * Fix that changes member function's signature to match one of super functions' signatures.
  */
 public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunction> {
-    private final List<FunctionDescriptor> possibleSignatures;
+    private final List<JetChangeFunctionSignatureAction.SignatureChange> possibleSignatures;
 
     public ChangeMemberFunctionSignatureFix(@NotNull JetNamedFunction element) {
         super(element);
@@ -69,7 +69,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         if (possibleSignatures.size() == 1)
             return JetBundle.message("change.function.signature.action.single",
                                      getFunctionSignatureString(
-                                             possibleSignatures.get(0),
+                                             possibleSignatures.get(0).getNewSignature(),
                                              /* shortTypeNames = */ true));
         else
             return JetBundle.message("change.function.signature.action.multiple");
@@ -107,16 +107,16 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
      * Computes all the signatures a 'functionElement' could be changed to in order to remove NOTHING_TO_OVERRIDE error.
      */
     @NotNull
-    private static List<FunctionDescriptor> computePossibleSignatures(JetNamedFunction functionElement) {
+    private static List<JetChangeFunctionSignatureAction.SignatureChange> computePossibleSignatures(JetNamedFunction functionElement) {
         BindingContext context = KotlinCacheManagerUtil.getDeclarationsFromProject(functionElement).getBindingContext();
         FunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
         if (functionDescriptor == null) return Lists.newArrayList();
         List<FunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
-        Map<String, FunctionDescriptor> possibleSignatures = Maps.newHashMap();
+        Map<String, JetChangeFunctionSignatureAction.SignatureChange> possibleSignatures = Maps.newHashMap();
         for (FunctionDescriptor superFunction : superFunctions) {
             if (!superFunction.getKind().isReal()) continue;
-            FunctionDescriptor signature = changeSignatureToMatch(functionDescriptor, superFunction);
-            possibleSignatures.put(getFunctionSignatureString(signature, /* shortTypeNames = */ false), signature);
+            JetChangeFunctionSignatureAction.SignatureChange signatureChange = changeSignatureToMatch(functionDescriptor, superFunction);
+            possibleSignatures.put(getFunctionSignatureString(signatureChange.getNewSignature(), /* shortTypeNames = */ false), signatureChange);
         }
         return Lists.newArrayList(possibleSignatures.values());
     }
@@ -124,7 +124,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
     /**
      *  Changes function's signature to match superFunction's signature. Returns new descriptor.
      */
-    private static FunctionDescriptor changeSignatureToMatch(FunctionDescriptor function, FunctionDescriptor superFunction) {
+    private static JetChangeFunctionSignatureAction.SignatureChange changeSignatureToMatch(FunctionDescriptor function, FunctionDescriptor superFunction) {
         List<ValueParameterDescriptor> superParameters = superFunction.getValueParameters();
         List<ValueParameterDescriptor> parameters = function.getValueParameters();
         List<ValueParameterDescriptor> newParameters = Lists.newArrayList(superParameters);
@@ -133,9 +133,10 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         BitSet matched = new BitSet(superParameters.size());
         // Parameters in this function, which are used in new function signature:
         BitSet used = new BitSet(superParameters.size());
+        List<Integer> originalIndices = Lists.newArrayList(Collections.<Integer>nCopies(superParameters.size(), null));
 
-        matchParameters(MATCH_NAMES, superParameters, parameters, newParameters, matched, used);
-        matchParameters(MATCH_TYPES, superParameters, parameters, newParameters, matched, used);
+        matchParameters(MATCH_NAMES, superParameters, parameters, newParameters, originalIndices, matched, used);
+        matchParameters(MATCH_TYPES, superParameters, parameters, newParameters, originalIndices, matched, used);
 
         FunctionDescriptor newFunction = FunctionDescriptorUtil.replaceFunctionParameters(
                 superFunction.copy(
@@ -146,7 +147,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
                         /* copyOverrides = */ true),
                 newParameters);
         newFunction.addOverriddenDescriptor(superFunction);
-        return newFunction;
+        return new JetChangeFunctionSignatureAction.SignatureChange(newFunction, originalIndices);
     }
 
     /**
@@ -203,6 +204,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
      * @param superParameters - super function's parameters
      * @param parameters - function's parameters
      * @param newParameters - new parameters (may be modified by this function)
+     * @param originalIndices - for each parameter index of it's original position or null if it's a new parameter (may be modified by this function)
      * @param matched - true iff this parameter in super function is matched by some parameter in function (may be modified by this function)
      * @param used - true iff this parameter in function is used to match some parameter in super function (may be modified by this function)
      */
@@ -211,6 +213,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             @NotNull List<ValueParameterDescriptor> superParameters,
             @NotNull List<ValueParameterDescriptor> parameters,
             @NotNull List<ValueParameterDescriptor> newParameters,
+            @NotNull List<Integer> originalIndices,
             @NotNull BitSet matched,
             @NotNull BitSet used
     ) {
@@ -220,6 +223,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
                     ValueParameterDescriptor choice = parameterChooser.choose(parameter, superParameter);
                     if (!used.get(parameter.getIndex()) && choice != null) {
                         used.set(parameter.getIndex(), true);
+                        originalIndices.set(superParameter.getIndex(), parameter.getIndex());
                         matched.set(superParameter.getIndex(), true);
                         newParameters.set(superParameter.getIndex(), choice);
                         break;

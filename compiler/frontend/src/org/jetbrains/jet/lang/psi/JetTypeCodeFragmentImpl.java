@@ -18,12 +18,11 @@ package org.jetbrains.jet.lang.psi;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.tree.IElementType;
+import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
-import org.jetbrains.jet.lexer.JetTokens;
 
 public class JetTypeCodeFragmentImpl extends JetCodeFragmentImpl implements JetTypeCodeFragment {
     public JetTypeCodeFragmentImpl(Project project, String name, CharSequence text, PsiElement context) {
@@ -33,26 +32,11 @@ public class JetTypeCodeFragmentImpl extends JetCodeFragmentImpl implements JetT
     @Nullable
     @Override
     public JetType getType() {
-        JetType type = null;
-
-        for (PsiElement child : getChildren()) {
-            IElementType elementType = child.getNode().getElementType();
-
-            if (elementType == JetNodeTypes.TYPE_CODE_FRAGMENT) {
-                for (PsiElement grChild : child.getChildren()) {
-                    if (grChild instanceof JetTypeReference) {
-                        if (!grChild.getText().isEmpty())
-                            //TODO return the actual type
-                            type = KotlinBuiltIns.getInstance().getAnyType();
-                    }
-                    else if (!JetTokens.WHITE_SPACE_OR_COMMENT_BIT_SET.contains(elementType))
-                        return null;
-                }
-            }
-            else if (!JetTokens.WHITE_SPACE_OR_COMMENT_BIT_SET.contains(elementType))
-                return null;
-        }
-
-        return type;
+        if (PsiTreeUtil.hasErrorElements(this))
+            return null;
+        if(PsiTreeUtil.collectElementsOfType(this, JetTypeReference.class).size() != 1)
+            return null;
+        //TODO return the actual type
+        return KotlinBuiltIns.getInstance().getAnyType();
     }
 }

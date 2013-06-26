@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.plugin.actions;
 
+import com.google.common.collect.Lists;
 import com.intellij.codeInsight.hint.QuestionAction;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
@@ -28,17 +29,17 @@ import com.intellij.psi.PsiDocumentManager;
 import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
-import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
-import org.jetbrains.jet.lang.psi.JetPsiFactory;
+import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.JetBundle;
+import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManagerUtil;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
-import org.jetbrains.jet.plugin.codeInsight.ReferenceToClassesShortening;
+import org.jetbrains.jet.plugin.refactoring.changeSignature.*;
 
 import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,24 +51,97 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     private final Project project;
     private final Editor editor;
     private final JetNamedFunction element;
-    private final List<FunctionDescriptor> signatures;
+    private final List<SignatureChange> signatures;
 
     /**
-     * @param project Project where action takes place.
-     * @param editor Editor where modification should be done.
-     * @param element Function element which signature should be changed.
+     * @param project    Project where action takes place.
+     * @param editor     Editor where modification should be done.
+     * @param element    Function element which signature should be changed.
      * @param signatures Variants for new function signature.
      */
     public JetChangeFunctionSignatureAction(
             @NotNull Project project,
             @NotNull Editor editor,
             @NotNull JetNamedFunction element,
-            @NotNull Collection<FunctionDescriptor> signatures
+            @NotNull Collection<SignatureChange> signatures
     ) {
         this.project = project;
         this.editor = editor;
         this.element = element;
-        this.signatures = new ArrayList<FunctionDescriptor>(signatures);
+        this.signatures = new ArrayList<SignatureChange>(signatures);
+    }
+
+    private static void changeSignature(final JetNamedFunction element, final Project project, final SignatureChange signatureChange) {
+
+        PsiDocumentManager.getInstance(project).commitAllDocuments();
+        BindingContext context = KotlinCacheManagerUtil.getDeclarationsFromProject(element).getBindingContext();
+        final FunctionDescriptor currentSignature = context.get(BindingContext.FUNCTION, element);
+        assert currentSignature != null : "current signature should be correct";
+
+        CommandProcessor.getInstance().executeCommand(project, new Runnable() {
+            @Override
+            public void run() {
+                ApplicationManager.getApplication().runWriteAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        FunctionDescriptor signature = signatureChange.getNewSignature();
+                        JetFunctionPlatformDescriptor platformDescriptor = new JetFunctionPlatformDescriptorImpl(currentSignature, element);
+                        JetChangeSignatureDialog dialog = new JetChangeSignatureDialog(
+                                project,
+                                platformDescriptor,
+                                element,
+                                getSignatureString(signature));
+
+                        dialog.setParameterInfos(generateParameterInfos(signatureChange));
+                        dialog.setReturnType(signature.getReturnType());
+                        dialog.setVisibility(signature.getVisibility());
+                        if (ApplicationManager.getApplication().isUnitTestMode()) {
+                            performRefactoringSilently(project, dialog, getSignatureString(signature));
+                        }
+                        else {
+                            dialog.show();
+                        }
+                    }
+                });
+            }
+        }, JetBundle.message("change.function.signature.action"), null);
+    }
+
+    private static List<JetParameterInfo> generateParameterInfos(SignatureChange signatureChange) {
+        List<JetParameterInfo> parameterInfos = Lists.newArrayList();
+        List<Integer> originalParameterIndices = signatureChange.getOriginalParametersIndices();
+        int idx = 0;
+        for (ValueParameterDescriptor parameter : signatureChange.getNewSignature().getValueParameters()) {
+            Integer originalIndex = originalParameterIndices.get(idx);
+            if (originalIndex != null) {
+                parameterInfos.add(new JetParameterInfo(
+                        originalIndex,
+                        parameter.getName().asString(),
+                        parameter.getType(),
+                        null,
+                        null));
+            }
+            else {
+                parameterInfos.add(new JetParameterInfo(parameter.getName().asString(), parameter.getType()));
+            }
+            idx++;
+        }
+        return parameterInfos;
+    }
+
+    private static String getSignatureString(FunctionDescriptor signature) {
+        return CodeInsightUtils.createFunctionSignatureStringFromDescriptor(signature, /* shortTypeNames = */ true);
+    }
+
+    private static void performRefactoringSilently(final Project project, final JetChangeSignatureDialog dialog, final String actionName) {
+        ApplicationManager.getApplication().runWriteAction(new Runnable() {
+            @Override
+            public void run() {
+                JetChangeInfo changeInfo = dialog.evaluateChangeInfo();
+                JetChangeSignatureProcessor processor = new JetChangeSignatureProcessor(project, changeInfo, actionName);
+                processor.run();
+            }
+        });
     }
 
     @Override
@@ -89,7 +163,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
     }
 
     private BaseListPopupStep getSignaturePopup() {
-        return new BaseListPopupStep<FunctionDescriptor>(
+        return new BaseListPopupStep<SignatureChange>(
                 JetBundle.message("change.function.signature.chooser.title"), signatures) {
             @Override
             public boolean isAutoSelectionEnabled() {
@@ -97,7 +171,7 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             }
 
             @Override
-            public PopupStep onChosen(FunctionDescriptor selectedValue, boolean finalChoice) {
+            public PopupStep onChosen(SignatureChange selectedValue, boolean finalChoice) {
                 if (finalChoice) {
                     changeSignature(element, project, selectedValue);
                 }
@@ -105,59 +179,37 @@ public class JetChangeFunctionSignatureAction implements QuestionAction {
             }
 
             @Override
-            public Icon getIconFor(FunctionDescriptor aValue) {
+            public Icon getIconFor(SignatureChange aValue) {
                 return PlatformIcons.FUNCTION_ICON;
             }
 
             @NotNull
             @Override
-            public String getTextFor(FunctionDescriptor aValue) {
-                return CodeInsightUtils.createFunctionSignatureStringFromDescriptor(
-                        aValue,
-                        /* shortTypeNames = */ true);
+            public String getTextFor(SignatureChange aValue) {
+                return getSignatureString(aValue.getNewSignature());
             }
         };
     }
 
-    private static void changeSignature(final JetNamedFunction element, final Project project, FunctionDescriptor signature) {
-        final String signatureString = CodeInsightUtils.createFunctionSignatureStringFromDescriptor(
-                signature,
-                /* shortTypeNames = */ false);
-
-        PsiDocumentManager.getInstance(project).commitAllDocuments();
-
-        CommandProcessor.getInstance().executeCommand(project, new Runnable() {
-            @Override
-            public void run() {
-                ApplicationManager.getApplication().runWriteAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        JetExpression bodyExpression = element.getBodyExpression();
-                        JetNamedFunction newElement;
-
-                        if (bodyExpression != null) {
-                            if (element.hasBlockBody()) {
-                                newElement = JetPsiFactory.createFunction(project, signatureString + "{}");
-                            }
-                            else {
-                                newElement = JetPsiFactory.createFunction(project, signatureString + "= \"dummy\"");
-                            }
-                            JetExpression newBodyExpression = newElement.getBodyExpression();
-                            assert newBodyExpression != null;
-                            newBodyExpression.replace(bodyExpression);
-                        }
-                        else {
-                            newElement = JetPsiFactory.createFunction(project, signatureString);
-                        }
-                        newElement = (JetNamedFunction) element.replace(newElement);
-                        ReferenceToClassesShortening.compactReferenceToClasses(Collections.singletonList(newElement));
-                    }
-                });
-            }
-        }, JetBundle.message("change.function.signature.action"), null);
-    }
-
     private void chooseSignatureAndChange() {
         JBPopupFactory.getInstance().createListPopup(getSignaturePopup()).showInBestPositionFor(editor);
+    }
+
+    public static class SignatureChange {
+        private final FunctionDescriptor newSignature;
+        private final List<Integer> originalParametersIndices;
+
+        public SignatureChange(FunctionDescriptor newSignature, List<Integer> originalParametersIndices) {
+            this.newSignature = newSignature;
+            this.originalParametersIndices = originalParametersIndices;
+        }
+
+        public FunctionDescriptor getNewSignature() {
+            return newSignature;
+        }
+
+        public List<Integer> getOriginalParametersIndices() {
+            return originalParametersIndices;
+        }
     }
 }
