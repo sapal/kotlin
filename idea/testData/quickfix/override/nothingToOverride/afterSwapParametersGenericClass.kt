@@ -4,5 +4,6 @@ trait A<P,Q> {
 }
 
 class B<R,S> : A<R,S> {
-    <caret>override fun f(y: S, x: List<Set<R>>) {}
+    <caret>override fun f(y: S,
+                   x: List<Set<R>>) {}
 }

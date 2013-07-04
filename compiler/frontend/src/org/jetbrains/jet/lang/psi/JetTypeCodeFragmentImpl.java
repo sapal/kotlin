@@ -18,11 +18,13 @@ package org.jetbrains.jet.lang.psi;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+import org.jetbrains.jet.lexer.JetTokens;
 
 public class JetTypeCodeFragmentImpl extends JetCodeFragmentImpl implements JetTypeCodeFragment {
     public JetTypeCodeFragmentImpl(Project project, String name, CharSequence text, PsiElement context) {
@@ -34,7 +36,7 @@ public class JetTypeCodeFragmentImpl extends JetCodeFragmentImpl implements JetT
     public JetType getType() {
         if (PsiTreeUtil.hasErrorElements(this))
             return null;
-        if(PsiTreeUtil.collectElementsOfType(this, JetTypeReference.class).size() != 1)
+        if(PsiTreeUtil.collectElementsOfType(this, JetTypeReference.class).isEmpty() && !getText().equals("") && !getText().equals("???"))
             return null;
         //TODO return the actual type
         return KotlinBuiltIns.getInstance().getAnyType();

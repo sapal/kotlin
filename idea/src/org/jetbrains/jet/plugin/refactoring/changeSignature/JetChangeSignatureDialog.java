@@ -52,10 +52,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.Visibilities;
 import org.jetbrains.jet.lang.descriptors.Visibility;
+import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.psi.JetTypeCodeFragment;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.plugin.JetFileType;
+import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
 import org.jetbrains.jet.plugin.refactoring.JetRefactoringBundle;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
@@ -405,6 +407,7 @@ public class JetChangeSignatureDialog extends ChangeSignatureDialogBase<
     }
 
     public JetChangeInfo evaluateChangeInfo() {
+        //WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile((JetFile)(myDefaultValueContext.getContainingFile()));
         List<JetParameterInfo> parameters = getParameters();
 
         for (int i = 0; i < parameters.size(); i++) {

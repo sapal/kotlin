@@ -4,5 +4,6 @@ open class A {
 }
 
 class B : A(){
-    <caret>override fun f(y: Int, x: String) {}
+    <caret>override fun f(y: Int,
+                   x: String) {}
 }

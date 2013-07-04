@@ -192,7 +192,7 @@ public class JetChangeSignatureUsageProcessor implements ChangeSignatureUsagePro
     @Nullable
     private static JetScope getFunctionScope(BindingContext bindingContext, DeclarationDescriptor containingDeclaration) {
         if (containingDeclaration instanceof ClassDescriptor)
-            return ((ClassDescriptor) containingDeclaration).getMemberScope(ContainerUtil.<TypeProjection>emptyList());
+            return ((ClassDescriptor) containingDeclaration).getUnsubstitutedInnerClassesScope();
         else if (containingDeclaration instanceof FunctionDescriptorImpl) {
             PsiElement container = BindingContextUtils.descriptorToDeclaration(bindingContext, containingDeclaration);
 

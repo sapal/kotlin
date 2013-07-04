@@ -223,7 +223,8 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
                     ValueParameterDescriptor choice = parameterChooser.choose(parameter, superParameter);
                     if (!used.get(parameter.getIndex()) && choice != null) {
                         used.set(parameter.getIndex(), true);
-                        originalIndices.set(superParameter.getIndex(), parameter.getIndex());
+                        if (JetTypeChecker.INSTANCE.equalTypes(superParameter.getType(), parameter.getType()))
+                            originalIndices.set(superParameter.getIndex(), parameter.getIndex());
                         matched.set(superParameter.getIndex(), true);
                         newParameters.set(superParameter.getIndex(), choice);
                         break;
